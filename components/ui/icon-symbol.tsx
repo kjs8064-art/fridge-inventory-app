@@ -20,6 +20,7 @@ const MAPPING = {
   "chevron.right": "chevron-right",
   "chart.bar.fill": "bar-chart",
   "gear": "settings",
+  "calendar": "calendar-month",
 } as IconMapping;
 
 /**
