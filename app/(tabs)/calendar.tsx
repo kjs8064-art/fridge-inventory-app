@@ -6,18 +6,16 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Calendar } from "react-native-calendars";
 import { useState, useMemo } from "react";
 import { router } from "expo-router";
+import { isHoliday, isWeekend } from "@/lib/korean-holidays";
 
 export default function CalendarScreen() {
   const colors = useColors();
   const { data: foodItems = [] } = trpc.foodItems.list.useQuery();
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split("T")[0]);
-  const [showModal, setShowModal] = useState(false);
 
   // 식품 삭제
   const deleteMutation = trpc.foodItems.delete.useMutation({
-    onSuccess: () => {
-      setShowModal(false);
-    },
+    onSuccess: () => {},
   });
 
   // 캘린더 마킹 생성 (유통기한별로 표시)
@@ -82,6 +80,28 @@ export default function CalendarScreen() {
       return dateStr === selectedDate;
     });
   }, [foodItems, selectedDate]);
+
+  // 선택된 날짜의 정보
+  const selectedDateInfo = useMemo(() => {
+    const holiday = isHoliday(selectedDate);
+    const weekend = isWeekend(selectedDate);
+    const date = new Date(selectedDate);
+    const dayOfWeek = ["일", "월", "화", "수", "목", "금", "토"][date.getDay()];
+
+    let dateLabel = `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일 (${dayOfWeek})`;
+    let dateType = "평일";
+    let dateTypeColor = colors.foreground;
+
+    if (holiday) {
+      dateType = holiday.name;
+      dateTypeColor = colors.error;
+    } else if (weekend) {
+      dateType = date.getDay() === 0 ? "일요일" : "토요일";
+      dateTypeColor = colors.error;
+    }
+
+    return { dateLabel, dateType, dateTypeColor };
+  }, [selectedDate, colors]);
 
   const handleDeleteItem = (id: number) => {
     Alert.alert("삭제 확인", "이 식품을 삭제하시겠습니까?", [
@@ -183,6 +203,7 @@ export default function CalendarScreen() {
               }}
               markedDates={markedDates}
               markingType="dot"
+              monthFormat={"yyyy년 MMMM"}
               theme={{
                 backgroundColor: colors.surface,
                 calendarBackground: colors.surface,
@@ -214,7 +235,20 @@ export default function CalendarScreen() {
             <Text className="text-sm font-semibold text-foreground mb-1">
               선택된 날짜
             </Text>
-            <Text className="text-lg font-bold text-primary">{selectedDate}</Text>
+            <Text className="text-base font-bold text-foreground mb-2">
+              {selectedDateInfo.dateLabel}
+            </Text>
+            <View
+              className="px-3 py-1 rounded-full w-fit"
+              style={{ backgroundColor: selectedDateInfo.dateTypeColor + "20" }}
+            >
+              <Text
+                className="text-xs font-semibold"
+                style={{ color: selectedDateInfo.dateTypeColor }}
+              >
+                {selectedDateInfo.dateType}
+              </Text>
+            </View>
           </View>
 
           {/* 선택된 날짜의 식품 목록 */}
@@ -243,28 +277,47 @@ export default function CalendarScreen() {
 
           {/* 범례 */}
           <View className="bg-surface rounded-lg p-4 border border-border gap-3">
-            <Text className="text-sm font-semibold text-foreground">범례</Text>
-            <View className="gap-2">
-              <View className="flex-row items-center gap-2">
-                <View
-                  className="w-4 h-4 rounded-full"
-                  style={{ backgroundColor: colors.success }}
-                />
-                <Text className="text-sm text-foreground">정상 (4일 이상)</Text>
+            <Text className="text-sm font-semibold text-foreground mb-2">범례</Text>
+            <View className="gap-3">
+              <View className="gap-2">
+                <Text className="text-xs font-semibold text-foreground">식품 상태</Text>
+                <View className="gap-2">
+                  <View className="flex-row items-center gap-2">
+                    <View
+                      className="w-4 h-4 rounded-full"
+                      style={{ backgroundColor: colors.success }}
+                    />
+                    <Text className="text-sm text-foreground">정상 (4일 이상)</Text>
+                  </View>
+                  <View className="flex-row items-center gap-2">
+                    <View
+                      className="w-4 h-4 rounded-full"
+                      style={{ backgroundColor: colors.warning }}
+                    />
+                    <Text className="text-sm text-foreground">임박 (1-3일)</Text>
+                  </View>
+                  <View className="flex-row items-center gap-2">
+                    <View
+                      className="w-4 h-4 rounded-full"
+                      style={{ backgroundColor: colors.error }}
+                    />
+                    <Text className="text-sm text-foreground">만료됨 (0일 이하)</Text>
+                  </View>
+                </View>
               </View>
-              <View className="flex-row items-center gap-2">
-                <View
-                  className="w-4 h-4 rounded-full"
-                  style={{ backgroundColor: colors.warning }}
-                />
-                <Text className="text-sm text-foreground">임박 (1-3일)</Text>
-              </View>
-              <View className="flex-row items-center gap-2">
-                <View
-                  className="w-4 h-4 rounded-full"
-                  style={{ backgroundColor: colors.error }}
-                />
-                <Text className="text-sm text-foreground">만료됨 (0일 이하)</Text>
+
+              <View className="gap-2">
+                <Text className="text-xs font-semibold text-foreground">달력 표시</Text>
+                <View className="gap-2">
+                  <View className="flex-row items-center gap-2">
+                    <MaterialIcons name="circle" size={12} color={colors.error} />
+                    <Text className="text-sm text-foreground">공휴일 / 주말</Text>
+                  </View>
+                  <View className="flex-row items-center gap-2">
+                    <MaterialIcons name="circle" size={12} color={colors.primary} />
+                    <Text className="text-sm text-foreground">식품 만료일</Text>
+                  </View>
+                </View>
               </View>
             </View>
           </View>
