@@ -343,24 +343,26 @@ JSON만 반환하세요.`;
           console.log("[Receipt Recognition] Image uploaded to:", imageUrl);
 
           // 2. Call LLM to extract products from receipt
-          const systemPrompt = `당신은 한국 영수증 인식 전문가입니다. 영수증 이미지에서 구매한 식품 목록을 추출하세요.
+          const systemPrompt = `당신은 한국 마트/편의점 영수증 인식 전문가입니다. 영수증 이미지에서 구매한 모든 식품 항목을 정확하게 추출하세요.
 
-반드시 다음 JSON 형식으로만 응답하세요:
+반드시 다음 JSON 형식으로만 응답하세요 (다른 설명 없이 JSON만):
 {
   "products": [
-    {"productName": "제품명", "quantity": "수량", "price": "가격"},
+    {"productName": "정확한 제품명", "quantity": "수량", "price": "가격"},
     {"productName": "제품명2", "quantity": "수량2", "price": "가격2"}
   ]
 }
 
-주의사항:
-- 식품만 추출 (음료, 유제품, 육류, 채소, 과일 등)
-- 제품명은 정확하게 추출
-- 수량이 없으면 "1"로 설정
-- 가격이 없으면 빈 문자열로 설정
-- JSON만 반환하세요.`;
+추출 규칙:
+1. 영수증에 표시된 모든 식품 항목 추출
+2. 제품명은 영수증에 표시된 그대로 정확하게 추출
+3. 수량이 명시되지 않으면 "1" 입력
+4. 가격이 명시되지 않으면 빈 문자열 입력
+5. 음료, 유제품, 육류, 채소, 과일, 간식 등 모든 식품 포함
+6. 비식품 항목(봉투, 배송료 등) 제외
+7. JSON 형식만 반환 (다른 텍스트 없음)`;
 
-          const userPrompt = `이 영수증에서 구매한 식품 목록을 JSON 형식으로 추출해주세요.`;
+          const userPrompt = `이 영수증 이미지에서 모든 식품 항목을 추출해서 JSON 형식으로 반환해주세요. JSON만 반환하세요.`;
 
           const response = await invokeLLM({
             messages: [
@@ -379,7 +381,7 @@ JSON만 반환하세요.`;
                     type: "image_url",
                     image_url: {
                       url: imageUrl,
-                      detail: "auto",
+                      detail: "high",
                     },
                   },
                 ] as any,
@@ -387,19 +389,27 @@ JSON만 반환하세요.`;
             ] as any,
           } as any);
 
+          console.log("[Receipt Recognition] Calling LLM with detail: high");
+          console.log("[Receipt Recognition] LLM Response:", JSON.stringify(response, null, 2));
+
           const message = response.choices[0]?.message;
           const content = message?.content;
           const textContent = extractTextFromContent(content);
+
+          console.log("[Receipt Recognition] Raw text content:", textContent);
 
           let jsonText = textContent.trim();
           if (!jsonText.startsWith("{")) {
             const jsonMatch = textContent.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
               jsonText = jsonMatch[0];
+              console.log("[Receipt Recognition] Extracted JSON from text:", jsonText);
             }
           }
 
+          console.log("[Receipt Recognition] Final JSON to parse:", jsonText);
           const result = JSON.parse(jsonText);
+          console.log("[Receipt Recognition] Parsed result:", result);
 
           // Extract products array
           const products = Array.isArray(result) 
