@@ -100,11 +100,12 @@ export async function getUserFoodItems(userId: number | string): Promise<FoodIte
 
   try {
     const numUserId = typeof userId === 'string' ? parseInt(userId) || 0 : userId;
-    return await db
+    const result = await db
       .select()
       .from(foodItems)
       .where(eq(foodItems.userId, numUserId))
       .orderBy(desc(foodItems.addedAt));
+    return normalizeFoodItems(result);
   } catch (error) {
     console.error("[Database] Failed to get food items:", error);
     return [];
@@ -154,9 +155,35 @@ export async function getFoodItem(id: number): Promise<FoodItem | undefined> {
 
   try {
     const result = await db.select().from(foodItems).where(eq(foodItems.id, id)).limit(1);
-    return result.length > 0 ? result[0] : undefined;
+    return result.length > 0 ? normalizeFoodItem(result[0]) : undefined;
   } catch (error) {
     console.error("[Database] Failed to get food item:", error);
     return undefined;
   }
+}
+
+/**
+ * Normalize food item: convert Date objects to ISO strings
+ * This prevents React rendering errors when Date objects are passed to JSX
+ */
+function normalizeFoodItem(item: FoodItem): any {
+  return {
+    ...item,
+    expirationDate: item.expirationDate instanceof Date 
+      ? item.expirationDate.toISOString().split('T')[0]
+      : item.expirationDate,
+    addedAt: item.addedAt instanceof Date
+      ? item.addedAt.toISOString()
+      : item.addedAt,
+    updatedAt: item.updatedAt instanceof Date
+      ? item.updatedAt.toISOString()
+      : item.updatedAt,
+  };
+}
+
+/**
+ * Normalize food items array
+ */
+function normalizeFoodItems(items: FoodItem[]): any[] {
+  return items.map(normalizeFoodItem);
 }
