@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Image } from "react-native";
+import { View, Text, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Image, Alert } from "react-native";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { router, useLocalSearchParams } from "expo-router";
@@ -19,29 +19,36 @@ export default function RecognitionResultScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [isRecognizing, setIsRecognizing] = useState(false);
   const [uploadedImageUrl, setUploadedImageUrl] = useState("");
+  const [recognitionError, setRecognitionError] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<string>("");
 
   const createMutation = trpc.foodItems.create.useMutation({
     onSuccess: () => {
-      router.push("/camera");
+      Alert.alert("성공", "식품이 저장되었습니다.");
+      router.push("/(tabs)");
     },
     onError: (error) => {
       console.error("Failed to create food item:", error);
-      alert("식품 추가에 실패했습니다.");
+      Alert.alert("오류", "식품 추가에 실패했습니다: " + error.message);
     },
   });
 
   const recognizeMutation = trpc.recognition.recognize.useMutation({
     onSuccess: (data) => {
-      setProductName(data.productName);
-      setExpirationDate(data.expirationDate);
-      setCategory(data.category);
-      setUploadedImageUrl(data.imageUrl);
+      console.log("[Client] Recognition success:", data);
+      setProductName(data.productName || "");
+      setExpirationDate(data.expirationDate || new Date().toISOString().split("T")[0]);
+      setCategory(data.category || "");
+      setUploadedImageUrl(data.imageUrl || "");
+      setRecognitionError(null);
+      setDebugInfo(`신뢰도: ${(data.confidence * 100).toFixed(1)}%`);
       setIsRecognizing(false);
     },
     onError: (error) => {
       console.error("Recognition error:", error);
+      setRecognitionError("이미지 분석 실패: " + error.message);
       setIsRecognizing(false);
-      alert("이미지 분석에 실패했습니다.");
+      Alert.alert("인식 실패", "이미지를 분석할 수 없습니다. 다시 시도해주세요.");
     },
   });
 
@@ -54,11 +61,17 @@ export default function RecognitionResultScreen() {
 
   const recognizeImage = async () => {
     setIsRecognizing(true);
+    setRecognitionError(null);
+    setDebugInfo("이미지 분석 중...");
     try {
+      console.log("[Client] Starting image recognition for:", imageUri);
+      
       // 1. Read image file and convert to base64
       const base64 = await FileSystem.readAsStringAsync(imageUri, {
         encoding: FileSystem.EncodingType.Base64,
       });
+      
+      console.log("[Client] Image converted to base64, length:", base64.length);
 
       // 2. Call recognition API
       await recognizeMutation.mutateAsync({
@@ -67,19 +80,33 @@ export default function RecognitionResultScreen() {
       });
     } catch (error) {
       console.error("Failed to read image:", error);
+      setRecognitionError("이미지를 읽을 수 없습니다.");
       setIsRecognizing(false);
-      alert("이미지를 읽을 수 없습니다.");
+      Alert.alert("오류", "이미지를 읽을 수 없습니다.");
     }
   };
 
   const handleSave = async () => {
     if (!productName.trim()) {
-      alert("제품명을 입력해주세요.");
+      Alert.alert("입력 필요", "제품명을 입력해주세요.");
+      return;
+    }
+
+    if (!expirationDate) {
+      Alert.alert("입력 필요", "유통기한을 입력해주세요.");
       return;
     }
 
     setIsSaving(true);
     try {
+      console.log("[Client] Saving food item:", {
+        productName,
+        expirationDate,
+        category,
+        quantity,
+        notes,
+      });
+
       await createMutation.mutateAsync({
         productName: productName.trim(),
         expirationDate,
@@ -91,6 +118,17 @@ export default function RecognitionResultScreen() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleRetry = () => {
+    setProductName("");
+    setExpirationDate(new Date().toISOString().split("T")[0]);
+    setCategory("");
+    setQuantity("");
+    setNotes("");
+    setRecognitionError(null);
+    setDebugInfo("");
+    recognizeImage();
   };
 
   return (
@@ -127,6 +165,32 @@ export default function RecognitionResultScreen() {
             <Text className="text-sm text-primary font-semibold mt-2">
               AI가 이미지를 분석 중입니다...
             </Text>
+            <Text className="text-xs text-primary mt-1">{debugInfo}</Text>
+          </View>
+        )}
+
+        {/* Recognition Error */}
+        {recognitionError && (
+          <View className="mx-4 mb-4 p-4 bg-error/20 rounded-lg">
+            <View className="flex-row items-center gap-2">
+              <MaterialIcons name="error" size={20} color={colors.error} />
+              <Text className="text-sm text-error font-semibold flex-1">
+                {recognitionError}
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={handleRetry}
+              className="mt-3 bg-error px-4 py-2 rounded-lg items-center"
+            >
+              <Text className="text-white font-semibold text-sm">다시 시도</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Debug Info */}
+        {debugInfo && !isRecognizing && (
+          <View className="mx-4 mb-4 p-3 bg-primary/10 rounded-lg border border-primary">
+            <Text className="text-xs text-primary">{debugInfo}</Text>
           </View>
         )}
 
@@ -186,7 +250,7 @@ export default function RecognitionResultScreen() {
             <TextInput
               value={quantity}
               onChangeText={setQuantity}
-              placeholder="예: 500g, 1 bottle"
+              placeholder="예: 500g, 1개"
               placeholderTextColor={colors.muted}
               className="border border-border rounded-lg px-4 py-3 text-foreground"
               style={{ color: colors.foreground }}

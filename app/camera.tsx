@@ -185,14 +185,49 @@ export default function CameraScreen() {
       <TouchableOpacity
         onPress={handleGallery}
         disabled={isLoading}
-        className="w-full bg-primary px-6 py-4 rounded-lg items-center justify-center opacity-80"
+        className="w-full bg-surface px-6 py-4 rounded-lg items-center justify-center border border-border"
       >
         {isLoading ? (
-          <ActivityIndicator color={colors.background} />
+          <ActivityIndicator color={colors.primary} />
         ) : (
           <>
-            <MaterialIcons name="image" size={24} color={colors.background} />
-            <Text className="text-background font-semibold mt-2">갤러리에서 선택</Text>
+            <MaterialIcons name="image" size={24} color={colors.primary} />
+            <Text className="text-foreground font-semibold mt-2">갤러리에서 선택</Text>
+          </>
+        )}
+      </TouchableOpacity>
+
+      {/* Receipt Button */}
+      <TouchableOpacity
+        onPress={() => {
+          setIsLoading(true);
+          ImagePicker.launchCameraAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: false,
+            quality: 0.8,
+          }).then((result) => {
+            setIsLoading(false);
+            if (!result.canceled && result.assets[0]) {
+              router.push({
+                pathname: "/receipt-result",
+                params: { imageUri: result.assets[0].uri },
+              });
+            }
+          }).catch((error) => {
+            setIsLoading(false);
+            console.error("Receipt camera error:", error);
+            Alert.alert("오류", "카메라를 열 수 없습니다.");
+          });
+        }}
+        disabled={isLoading}
+        className="w-full bg-surface px-6 py-4 rounded-lg items-center justify-center border border-border"
+      >
+        {isLoading ? (
+          <ActivityIndicator color={colors.primary} />
+        ) : (
+          <>
+            <MaterialIcons name="receipt" size={24} color={colors.primary} />
+            <Text className="text-foreground font-semibold mt-2">영수증 촬영</Text>
           </>
         )}
       </TouchableOpacity>
