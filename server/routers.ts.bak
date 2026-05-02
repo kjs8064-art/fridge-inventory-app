@@ -7,46 +7,37 @@ import { invokeLLM } from "./_core/llm";
 import { storagePut } from "./storage";
 import * as db from "./db";
 
-// Helper function to safely extract text from LLM response
+// Helper function to extract text from LLM response
 function extractTextFromContent(content: any): string {
-  try {
-    console.log("[LLM] Extracting text from content, type:", typeof content);
-    
-    // If content is already a string, return it
-    if (typeof content === "string") {
-      console.log("[LLM] Content is string");
-      return content;
-    }
-
-    // If content is an array, find the text part
-    if (Array.isArray(content)) {
-      console.log("[LLM] Content is array, length:", content.length);
-      for (const part of content) {
-        if (part && typeof part === "object") {
-          if (part.type === "text" && typeof part.text === "string") {
-            console.log("[LLM] Found text in array");
-            return part.text;
-          }
-        }
-      }
-    }
-
-    // If content is an object with text property
-    if (typeof content === "object" && content !== null) {
-      if ("text" in content && typeof content.text === "string") {
-        console.log("[LLM] Found text in object");
-        return content.text;
-      }
-    }
-
-    // Fallback: stringify
-    console.log("[LLM] Fallback: stringifying");
-    const stringified = JSON.stringify(content);
-    return stringified;
-  } catch (err) {
-    console.error("[LLM] Error extracting text:", err);
-    return "";
+  console.log("[LLM] Raw content type:", typeof content, "is array:", Array.isArray(content));
+  
+  // If content is already a string, return it
+  if (typeof content === "string") {
+    console.log("[LLM] Content is string, length:", content.length);
+    return content;
   }
+
+  // If content is an array, find the text part
+  if (Array.isArray(content)) {
+    console.log("[LLM] Content is array, length:", content.length);
+    const textPart = content.find((part: any) => part.type === "text");
+    if (textPart && textPart.text) {
+      console.log("[LLM] Found text in array, length:", textPart.text.length);
+      return textPart.text;
+    }
+  }
+
+  // If content is an object with text property
+  if (typeof content === "object" && content !== null && "text" in content) {
+    console.log("[LLM] Content is object with text property, length:", content.text.length);
+    return content.text;
+  }
+
+  // Fallback: stringify and try to extract
+  console.log("[LLM] Fallback: stringifying content");
+  const stringified = JSON.stringify(content);
+  console.log("[LLM] Stringified content:", stringified.substring(0, 200));
+  return stringified;
 }
 
 export const appRouter = router({
@@ -152,8 +143,6 @@ export const appRouter = router({
       )
       .mutation(async ({ input }) => {
         try {
-          console.log("[Recognition] Starting recognition process");
-          
           // 1. Upload image to S3
           const buffer = Buffer.from(input.imageBase64, "base64");
           const fileName = `food-recognition/${Date.now()}.jpg`;
@@ -212,66 +201,37 @@ JSON만 반환하세요.`;
           } as any);
 
           console.log("[Recognition] LLM response received");
-          
-          // Check if response has choices
-          if (!response || !response.choices || response.choices.length === 0) {
-            console.error("[Recognition] No choices in response");
-            throw new Error("LLM 응답에 choices가 없습니다");
-          }
+          console.log("[Recognition] Response choices length:", response.choices?.length);
 
           // 3. Extract and parse the response
-          const message = response.choices[0]?.message;
-          if (!message) {
-            console.error("[Recognition] No message in first choice");
-            throw new Error("LLM 응답에 message가 없습니다");
-          }
-
-          const content = message.content;
+          const content = response.choices[0]?.message?.content;
           console.log("[Recognition] Raw content type:", typeof content);
           
           const textContent = extractTextFromContent(content);
-          if (!textContent) {
-            console.error("[Recognition] Could not extract text from content");
-            throw new Error("LLM 응답에서 텍스트를 추출할 수 없습니다");
-          }
-
-          console.log("[Recognition] Extracted text (first 300 chars):", textContent.substring(0, 300));
+          console.log("[Recognition] Extracted text:", textContent.substring(0, 300));
 
           // Try to extract JSON from the text
-          let jsonText = textContent.trim();
+          let jsonText = textContent;
           
           // If the text contains JSON but not as the whole string, try to extract it
-          if (!jsonText.startsWith("{")) {
+          if (!textContent.trim().startsWith("{")) {
             console.log("[Recognition] Text doesn't start with {, trying to extract JSON");
-            const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
+            const jsonMatch = textContent.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
               jsonText = jsonMatch[0];
               console.log("[Recognition] Extracted JSON from text");
-            } else {
-              console.error("[Recognition] Could not find JSON in text");
-              throw new Error("응답에서 JSON을 찾을 수 없습니다");
             }
           }
 
-          console.log("[Recognition] JSON to parse (first 300 chars):", jsonText.substring(0, 300));
-          
-          let result;
-          try {
-            result = JSON.parse(jsonText);
-            console.log("[Recognition] Successfully parsed JSON");
-          } catch (parseError) {
-            console.error("[Recognition] JSON parse error:", parseError);
-            console.error("[Recognition] Failed to parse:", jsonText.substring(0, 200));
-            throw new Error(`JSON 파싱 실패: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
-          }
+          console.log("[Recognition] JSON to parse:", jsonText.substring(0, 300));
+          const result = JSON.parse(jsonText);
+          console.log("[Recognition] Parsed result:", result);
 
           // Validate and clean the result
-          const productName = String(result.productName || result.name || result.product_name || "").trim();
-          const expirationDate = String(result.expirationDate || result.expiration_date || result.expiry_date || "").trim();
-          const category = String(result.category || result.type || "기타").trim();
+          const productName = (result.productName || result.name || result.product_name || "").toString().trim();
+          const expirationDate = (result.expirationDate || result.expiration_date || result.expiry_date || "").toString().trim();
+          const category = (result.category || result.type || "기타").toString().trim();
           const confidence = typeof result.confidence === "number" ? result.confidence : 0.7;
-
-          console.log("[Recognition] Extracted values:", { productName, expirationDate, category, confidence });
 
           // Validate date format
           const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
@@ -293,17 +253,16 @@ JSON만 반환하세요.`;
           return finalResult;
         } catch (error) {
           console.error("[Recognition] Error:", error);
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          console.error("[Recognition] Error message:", errorMessage);
+          console.error("[Recognition] Error message:", error instanceof Error ? error.message : String(error));
           
-          // Return error response
+          // Return default values on error, but log the error
           return {
             productName: "",
             expirationDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
             category: "기타",
             confidence: 0,
             imageUrl: "",
-            error: errorMessage,
+            error: error instanceof Error ? error.message : String(error),
           };
         }
       }),
@@ -370,12 +329,13 @@ JSON만 반환하세요.`;
             ] as any,
           } as any);
 
-          const message = response.choices[0]?.message;
-          const content = message?.content;
+          const content = response.choices[0]?.message?.content;
           const textContent = extractTextFromContent(content);
+          console.log("[Receipt Recognition] Extracted text:", textContent.substring(0, 300));
 
-          let jsonText = textContent.trim();
-          if (!jsonText.startsWith("{")) {
+          // Extract JSON from text
+          let jsonText = textContent;
+          if (!textContent.trim().startsWith("{")) {
             const jsonMatch = textContent.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
               jsonText = jsonMatch[0];
@@ -383,6 +343,7 @@ JSON만 반환하세요.`;
           }
 
           const result = JSON.parse(jsonText);
+          console.log("[Receipt Recognition] Parsed result:", result);
 
           // Extract products array
           const products = Array.isArray(result) 
@@ -391,9 +352,9 @@ JSON만 반환하세요.`;
 
           return {
             products: products.map((p: any) => ({
-              productName: String(p.productName || p.name || p.product_name || "미확인").trim(),
-              quantity: String(p.quantity || "1").trim(),
-              price: String(p.price || "").trim(),
+              productName: (p.productName || p.name || p.product_name || "미확인").toString().trim(),
+              quantity: (p.quantity || "1").toString().trim(),
+              price: (p.price || "").toString().trim(),
             })),
             imageUrl,
           };
