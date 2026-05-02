@@ -113,7 +113,7 @@ export const appRouter = router({
           notes: z.string().optional(),
         })
       )
-      .mutation(({ input }) => {
+      .mutation(async ({ input }) => {
         const updateData: any = {};
         if (input.productName !== undefined) updateData.productName = input.productName;
         if (input.imageUrl !== undefined) updateData.imageUrl = input.imageUrl;
@@ -126,13 +126,24 @@ export const appRouter = router({
             : input.expirationDate;
         }
 
-        return db.updateFoodItem(input.id, updateData);
+        await db.updateFoodItem(input.id, updateData);
+        return { success: true };
       }),
 
     // Delete a food item
     delete: publicProcedure
       .input(z.object({ id: z.number() }))
-      .mutation(({ input }) => db.deleteFoodItem(input.id)),
+      .mutation(async ({ input }) => {
+        console.log("[Delete] Attempting to delete food item:", input.id);
+        try {
+          await db.deleteFoodItem(input.id);
+          console.log("[Delete] Successfully deleted food item:", input.id);
+          return { success: true };
+        } catch (error) {
+          console.error("[Delete] Failed to delete food item:", error);
+          throw error;
+        }
+      }),
 
     // Get a single food item
     get: publicProcedure
