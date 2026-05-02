@@ -78,3 +78,9 @@
 - [x] admob-banner.tsx에 ADMOB_BANNER_AD_ID 체크 추가
 - [x] 광고 ID가 없을 때 null 반환하도록 수정
 - [x] 개발 서버 재시작
+
+## Phase 11: AdMobBanner 임시 제거 및 안정성 개선
+- [x] 홈 화면에서 AdMobBanner import 주석 처리
+- [x] 홈 화면에서 AdMobBanner 사용 주석 처리
+- [x] 앱 정상 작동 확인
+- [ ] AdMob 계정 설정 후 다시 활성화 (향후 작업)

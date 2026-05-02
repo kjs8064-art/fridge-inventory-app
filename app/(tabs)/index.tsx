@@ -5,7 +5,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useColors } from "@/hooks/use-colors";
 import { useEffect, useState } from "react";
 import { trpc } from "@/lib/trpc";
-import AdMobBanner from "@/components/admob-banner";
+// import AdMobBanner from "@/components/admob-banner"; // TODO: AdMob 계정 설정 후 활성화
 /**
  * Home Screen - SnapStock 메인 화면
  * 
@@ -213,8 +213,8 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {/* 배너 광고 */}
-        <AdMobBanner position="bottom" size="smartBannerPortrait" />
+        {/* 배너 광고 - TODO: AdMob 계정 설정 후 활성화 */}
+        {/* <AdMobBanner position="bottom" size="smartBannerPortrait" /> */}
       </ScrollView>
 
       {/* 플로팅 카메라 버튼 */}
