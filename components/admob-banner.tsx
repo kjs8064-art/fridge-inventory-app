@@ -49,6 +49,12 @@ export function AdMobBanner({
     return null;
   }
 
+  // AdMob ID가 없으면 표시하지 않음
+  if (!ADMOB_BANNER_AD_ID) {
+    console.warn("[AdMob] Banner ad ID not configured");
+    return null;
+  }
+
   return (
     <View
       className={`w-full items-center ${

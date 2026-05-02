@@ -72,3 +72,9 @@
 - [x] 뷰 모드와 수정 모드 토글 기능
 - [x] 날짜 입력 필드 개선 (YYYY-MM-DD 형식)
 - [x] 삭제 기능 구현 (확인 다이얼로그)
+
+
+## Phase 10: AdMob 배너 에러 수정
+- [x] admob-banner.tsx에 ADMOB_BANNER_AD_ID 체크 추가
+- [x] 광고 ID가 없을 때 null 반환하도록 수정
+- [x] 개발 서버 재시작
