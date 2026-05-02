@@ -86,14 +86,20 @@ export default function HomeScreen() {
     expired: foodItems.filter((item) => getDaysUntilExpiration(item.expirationDate) < 3).length,
   };
 
+  // Delete mutation
+  const deleteMutation = trpc.foodItems.delete.useMutation({
+    onSuccess: () => {
+      refetch();
+    },
+  });
+
   const handleDeleteItem = (id: number) => {
     Alert.alert("삭제 확인", "이 식품을 삭제하시겠습니까?", [
       { text: "취소", onPress: () => {}, style: "cancel" },
       {
         text: "삭제",
         onPress: () => {
-          // TODO: Implement delete mutation
-          refetch();
+          deleteMutation.mutate({ id });
         },
         style: "destructive",
       },
@@ -188,7 +194,10 @@ export default function HomeScreen() {
                   className="bg-surface rounded-lg p-4 border border-border"
                 >
                   {/* Top Row: Product Name and Delete */}
-                  <View className="flex-row items-start justify-between mb-3">
+                  <Pressable
+                    onPress={() => router.push({ pathname: "/food-detail/[id]", params: { id: item.id.toString() } })}
+                    className="flex-row items-start justify-between mb-3"
+                  >
                     <View className="flex-1">
                       <Text className="text-base font-semibold text-foreground">{item.productName}</Text>
                       <View className="flex-row items-center gap-2 mt-2">
@@ -209,34 +218,34 @@ export default function HomeScreen() {
                     >
                       <MaterialIcons name="close" size={20} color={colors.muted} />
                     </TouchableOpacity>
-                  </View>
+                  </Pressable>
 
                   {/* Bottom Row: Quantity Controls */}
-                  <View className="flex-row items-center justify-between bg-background rounded-lg p-3 border border-border">
+                  <View className="flex-row items-center justify-between bg-background rounded-lg p-2 border border-border">
                     <Text className="text-xs text-muted">수량</Text>
                     
-                    <View className="flex-row items-center gap-3">
+                    <View className="flex-row items-center gap-2">
                       {/* Minus Button */}
                       <TouchableOpacity
                         onPress={() => handleQuantityChange(item.id, item.quantity || "0", -1)}
-                        className="bg-primary rounded-full p-2"
+                        className="bg-primary rounded-full p-1"
                         disabled={updateMutation.isPending}
                       >
-                        <MaterialIcons name="remove" size={16} color={colors.background} />
+                        <MaterialIcons name="remove" size={12} color={colors.background} />
                       </TouchableOpacity>
 
                       {/* Quantity Display */}
-                      <View className="min-w-12 items-center">
-                        <Text className="text-lg font-bold text-foreground">{quantity}</Text>
+                      <View className="min-w-8 items-center">
+                        <Text className="text-xs font-bold text-foreground">{quantity}</Text>
                       </View>
 
                       {/* Plus Button */}
                       <TouchableOpacity
                         onPress={() => handleQuantityChange(item.id, item.quantity || "0", 1)}
-                        className="bg-primary rounded-full p-2"
+                        className="bg-primary rounded-full p-1"
                         disabled={updateMutation.isPending}
                       >
-                        <MaterialIcons name="add" size={16} color={colors.background} />
+                        <MaterialIcons name="add" size={12} color={colors.background} />
                       </TouchableOpacity>
                     </View>
                   </View>
