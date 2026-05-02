@@ -1,4 +1,4 @@
-import { ScrollView, Text, View, TouchableOpacity, FlatList } from "react-native";
+import { ScrollView, Text, View, TouchableOpacity, FlatList, Alert, TextInput } from "react-native";
 import { ScreenContainer } from "@/components/screen-container";
 import { router } from "expo-router";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -20,6 +20,7 @@ import { trpc } from "@/lib/trpc";
 export default function HomeScreen() {
   const colors = useColors();
   const [selectedCategory, setSelectedCategory] = useState<"전체" | "정상" | "임박" | "만료">("전체");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [foodItems, setFoodItems] = useState<any[]>([]);
 
   // 식품 목록 조회
@@ -63,6 +64,11 @@ export default function HomeScreen() {
 
   // 필터링된 식품 목록
   const filteredItems = foodItems.filter((item) => {
+    // 검색 필터
+    if (searchQuery && !item.productName.toLowerCase().includes(searchQuery.toLowerCase())) {
+      return false;
+    }
+
     if (selectedCategory === "전체") return true;
 
     const now = new Date();
@@ -204,6 +210,25 @@ export default function HomeScreen() {
               </Text>
               <Text className="text-xs text-muted mt-1">만료</Text>
             </View>
+          </View>
+        </View>
+
+        {/* 검색 입력 필드 */}
+        <View className="px-6 py-2">
+          <View className="bg-surface rounded-lg border border-border px-4 py-3 flex-row items-center gap-2">
+            <MaterialIcons name="search" size={20} color={colors.muted} />
+            <TextInput
+              placeholder="식품명 검색..."
+              placeholderTextColor={colors.muted}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              className="flex-1 text-foreground"
+            />
+            {searchQuery ? (
+              <TouchableOpacity onPress={() => setSearchQuery("")}>
+                <MaterialIcons name="close" size={20} color={colors.muted} />
+              </TouchableOpacity>
+            ) : null}
           </View>
         </View>
 
