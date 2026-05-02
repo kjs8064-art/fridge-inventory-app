@@ -6,6 +6,7 @@ import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { invokeLLM } from "./_core/llm";
 import { storagePut, storageGetSignedUrl } from "./storage";
 import * as db from "./db";
+import { normalizeExpirationDate } from "./date-utils";
 
 // Helper function to safely extract text from LLM response
 function extractTextFromContent(content: any): string {
@@ -176,7 +177,7 @@ export const appRouter = router({
           console.log("[Recognition] Image uploaded to:", imageUrl);
 
           // 2. Call LLM with the uploaded image URL
-          const systemPrompt = `당신은 한국 식품 인식 전문가입니다. 사용자가 보낸 식품 이미지를 분석하여 다음 정보를 추출하세요.
+          const systemPrompt = `당신은 한국 및 국제 식품 인식 전문가입니다. 사용자가 보낸 식품 이미지를 분석하여 다음 정보를 추출하세요.
 
 반드시 JSON 형식으로만 응답하세요. 다른 텍스트는 포함하지 마세요.
 
@@ -189,8 +190,13 @@ export const appRouter = router({
 }
 
 주의사항:
-- productName: 제품의 정확한 이름만 입력 (예: 우유, 계란, 요구르트, 치즈, 두유)
-- expirationDate: 반드시 YYYY-MM-DD 형식. 이미지에 보이지 않으면 해당 제품의 일반적인 유통기한으로 추정
+- productName: 제품의 정확한 이름만 입력 (예: 우유, 계란, 요구르트, 치즈, 두유, Milk, Yogurt, Cheese 등)
+- expirationDate: 다음 규칙에 따라 YYYY-MM-DD 형식으로 변환하여 입력:
+  * 한국 형식 (2025.05.01, 2025-05-01, 2025/05/01): 그대로 YYYY-MM-DD로 변환
+  * 영어 형식 (May 1, 2025, May 1 2025, 01 May 2025): YYYY-MM-DD로 변환
+  * 유럽 형식 (01.05.2025, 01-05-2025, 01/05/2025): YYYY-MM-DD로 변환
+  * 숫자만 (20250501): YYYY-MM-DD로 변환
+  * 이미지에 보이지 않으면 해당 제품의 일반적인 유통기한으로 추정
 - category: 정확히 하나만 선택
 - confidence: 인식 신뢰도 (0.0=확신 없음, 1.0=매우 확신)
 
@@ -281,19 +287,15 @@ JSON만 반환하세요.`;
 
           // Validate and clean the result
           const productName = String(result.productName || result.name || result.product_name || "").trim();
-          const expirationDate = String(result.expirationDate || result.expiration_date || result.expiry_date || "").trim();
+          const rawExpirationDate = String(result.expirationDate || result.expiration_date || result.expiry_date || "").trim();
           const category = String(result.category || result.type || "기타").trim();
           const confidence = typeof result.confidence === "number" ? result.confidence : 0.7;
 
-          console.log("[Recognition] Extracted values:", { productName, expirationDate, category, confidence });
+          console.log("[Recognition] Extracted values:", { productName, rawExpirationDate, category, confidence });
 
-          // Validate date format
-          const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-          let validatedDate = expirationDate;
-          if (!dateRegex.test(expirationDate)) {
-            console.log("[Recognition] Invalid date format:", expirationDate, "using default");
-            validatedDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-          }
+          // Normalize and validate date format (supports multiple formats)
+          const validatedDate = normalizeExpirationDate(rawExpirationDate, 7);
+          console.log("[Recognition] Normalized date:", rawExpirationDate, "→", validatedDate);
 
           const finalResult = {
             productName: productName || "미확인 제품",
@@ -343,7 +345,7 @@ JSON만 반환하세요.`;
           console.log("[Receipt Recognition] Image uploaded to:", imageUrl);
 
           // 2. Call LLM to extract products from receipt
-          const systemPrompt = `당신은 한국 마트/편의점 영수증 인식 전문가입니다. 영수증 이미지에서 구매한 모든 식품 항목을 정확하게 추출하세요.
+          const systemPrompt = `당신은 한국 및 국제 마트/편의점 영수증 인식 전문가입니다. 영수증 이미지에서 구매한 모든 식품 항목을 정확하게 추출하세요.
 
 반드시 다음 JSON 형식으로만 응답하세요 (다른 설명 없이 JSON만):
 {
@@ -354,13 +356,14 @@ JSON만 반환하세요.`;
 }
 
 추출 규칙:
-1. 영수증에 표시된 모든 식품 항목 추출
+1. 영수증에 표시된 모든 식품 항목 추출 (한국어, 영어, 기타 언어 모두 포함)
 2. 제품명은 영수증에 표시된 그대로 정확하게 추출
 3. 수량이 명시되지 않으면 "1" 입력
 4. 가격이 명시되지 않으면 빈 문자열 입력
 5. 음료, 유제품, 육류, 채소, 과일, 간식 등 모든 식품 포함
-6. 비식품 항목(봉투, 배송료 등) 제외
-7. JSON 형식만 반환 (다른 텍스트 없음)`;
+6. 비식품 항목(봉투, 배송료, 할인 등) 제외
+7. 영수증이 불명확하거나 텍스트가 흐릿한 경우 최선을 다해 추출
+8. JSON 형식만 반환 (다른 텍스트 없음)`;
 
           const userPrompt = `이 영수증 이미지에서 모든 식품 항목을 추출해서 JSON 형식으로 반환해주세요. JSON만 반환하세요.`;
 
