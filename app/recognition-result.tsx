@@ -37,12 +37,21 @@ export default function RecognitionResultScreen() {
   const recognizeMutation = trpc.recognition.recognize.useMutation({
     onSuccess: (data) => {
       console.log("[Client] Recognition success:", data);
+      
+      const dataWithError = data as any;
+      if (dataWithError.error) {
+        console.error("[Client] Server error:", dataWithError.error);
+        setRecognitionError(`서버 오류: ${dataWithError.error}`);
+        setIsRecognizing(false);
+        return;
+      }
+      
       setProductName(data.productName || "");
       setExpirationDate(data.expirationDate || new Date().toISOString().split("T")[0]);
       setCategory(data.category || "");
       setUploadedImageUrl(data.imageUrl || "");
       setRecognitionError(null);
-      setDebugInfo(`신뢰도: ${(data.confidence * 100).toFixed(1)}%`);
+      setDebugInfo(`신뢰도: ${(data.confidence * 100).toFixed(1)}% | 제품명: ${data.productName || "(인식 실패)"}`);
       setIsRecognizing(false);
     },
     onError: (error) => {
