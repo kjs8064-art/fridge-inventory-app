@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Image, Alert } from "react-native";
+import { View, Text, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Image, Alert, Platform } from "react-native";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { router, useLocalSearchParams } from "expo-router";
@@ -6,7 +6,6 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import * as FileSystem from "expo-file-system/legacy";
-import { Platform } from "react-native";
 
 export default function RecognitionResultScreen() {
   const colors = useColors();
@@ -81,10 +80,16 @@ export default function RecognitionResultScreen() {
         throw new Error("이미지 URI가 없습니다");
       }
 
+      // Check if imageUri is already base64 (from ImagePicker with base64: true)
       let base64: string;
+      let mimeType: string = "image/jpeg";
 
-      // 웹 환경 처리 (blob URL 또는 data URL)
-      if (Platform.OS === "web" || imageUri.startsWith("blob:") || imageUri.startsWith("data:")) {
+      if (typeof imageUri === "string" && imageUri.length > 100 && !imageUri.includes("/")) {
+        // This looks like base64 data
+        console.log("[Client] Using base64 directly from ImagePicker");
+        base64 = imageUri;
+      } else if (Platform.OS === "web" || imageUri.startsWith("blob:") || imageUri.startsWith("data:")) {
+        // 웹 환경 처리 (blob URL 또는 data URL)
         console.log("[Client] Web environment detected, using fetch");
         
         if (imageUri.startsWith("data:")) {
@@ -94,6 +99,7 @@ export default function RecognitionResultScreen() {
           // blob URL인 경우
           const response = await fetch(imageUri);
           const blob = await response.blob();
+          mimeType = blob.type || "image/jpeg";
           base64 = await new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onloadend = () => {
@@ -113,6 +119,7 @@ export default function RecognitionResultScreen() {
       }
       
       console.log("[Client] Image converted to base64, length:", base64.length);
+      console.log("[Client] MIME type:", mimeType);
 
       if (!base64 || base64.length === 0) {
         throw new Error("Base64 변환 실패");
@@ -121,7 +128,7 @@ export default function RecognitionResultScreen() {
       // 2. Call recognition API
       await recognizeMutation.mutateAsync({
         imageBase64: base64,
-        mimeType: "image/jpeg",
+        mimeType: mimeType,
       });
     } catch (error) {
       console.error("Failed to read image:", error);

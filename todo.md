@@ -34,3 +34,10 @@
 - [ ] 성능 최적화
 - [ ] 최종 QR 코드 생성
 - [ ] 배포 준비
+
+## Phase 6-1: AI 이미지 인식 버그 수정
+- [x] ImagePicker base64 옵션 활성화 (camera.tsx)
+- [x] Base64 직접 사용 감지 (recognition-result.tsx)
+- [x] 웹 환경 blob URL 처리 (recognition-result.tsx)
+- [x] 영수증 인식 Platform 감지 개선 (receipt-result.tsx)
+- [x] MIME 타입 동적 처리 (web blob 타입 사용)

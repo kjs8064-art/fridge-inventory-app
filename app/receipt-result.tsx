@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Image, Alert, FlatList, TextInput } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Image, Alert, FlatList, TextInput, Platform } from "react-native";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { router, useLocalSearchParams } from "expo-router";
@@ -67,22 +67,61 @@ export default function ReceiptResultScreen() {
     setRecognitionError(null);
     try {
       console.log("[Client] Starting receipt recognition for:", imageUri);
+      console.log("[Client] Platform:", Platform.OS);
       
-      const base64 = await FileSystem.readAsStringAsync(imageUri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
+      if (!imageUri) {
+        throw new Error("이미지 URI가 없습니다");
+      }
+
+      let base64: string;
+      let mimeType: string = "image/jpeg";
+
+      if (typeof imageUri === "string" && imageUri.length > 100 && !imageUri.includes("/")) {
+        console.log("[Client] Using base64 directly from ImagePicker");
+        base64 = imageUri;
+      } else if (Platform.OS === "web" || imageUri.startsWith("blob:") || imageUri.startsWith("data:")) {
+        console.log("[Client] Web environment detected, using fetch");
+        
+        if (imageUri.startsWith("data:")) {
+          base64 = imageUri.split(",")[1] || "";
+        } else {
+          const response = await fetch(imageUri);
+          const blob = await response.blob();
+          mimeType = blob.type || "image/jpeg";
+          base64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const result = reader.result as string;
+              resolve(result.split(",")[1] || result);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+        }
+      } else {
+        console.log("[Client] Native environment detected, using FileSystem");
+        base64 = await FileSystem.readAsStringAsync(imageUri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+      }
       
       console.log("[Client] Image converted to base64, length:", base64.length);
+      console.log("[Client] MIME type:", mimeType);
+
+      if (!base64 || base64.length === 0) {
+        throw new Error("Base64 변환 실패");
+      }
 
       await recognizeReceiptMutation.mutateAsync({
         imageBase64: base64,
-        mimeType: "image/jpeg",
+        mimeType: mimeType,
       });
     } catch (error) {
       console.error("Failed to read image:", error);
-      setRecognitionError("이미지를 읽을 수 없습니다.");
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      setRecognitionError(`이미지를 읽을 수 없습니다: ${errorMsg}`);
       setIsRecognizing(false);
-      Alert.alert("오류", "이미지를 읽을 수 없습니다.");
+      Alert.alert("오류", `이미지를 읽을 수 없습니다: ${errorMsg}`);
     }
   };
 

@@ -36,7 +36,7 @@ export default function CameraScreen() {
       const photo = await cameraRef.current.takePictureAsync({
         quality: 0.8,
         exif: false,
-        base64: false,
+        base64: true,
         skipProcessing: false,
       });
 
@@ -65,6 +65,7 @@ export default function CameraScreen() {
         allowsEditing: false,
         aspect: [4, 3],
         quality: 0.8,
+        base64: true,
       });
 
       if (!result.canceled && result.assets[0]) {
@@ -205,6 +206,7 @@ export default function CameraScreen() {
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
             allowsEditing: false,
             quality: 0.8,
+            base64: true,
           }).then((result) => {
             setIsLoading(false);
             if (!result.canceled && result.assets[0]) {
