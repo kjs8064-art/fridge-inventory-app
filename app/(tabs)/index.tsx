@@ -6,6 +6,7 @@ import { useColors } from "@/hooks/use-colors";
 import { useEffect, useState } from "react";
 import { trpc } from "@/lib/trpc";
 // import AdMobBanner from "@/components/admob-banner"; // TODO: AdMob 계정 설정 후 활성화
+
 /**
  * Home Screen - SnapStock 메인 화면
  * 
@@ -19,9 +20,17 @@ import { trpc } from "@/lib/trpc";
 export default function HomeScreen() {
   const colors = useColors();
   const [selectedCategory, setSelectedCategory] = useState<"전체" | "정상" | "임박" | "만료">("전체");
+  const [foodItems, setFoodItems] = useState<any[]>([]);
 
   // 식품 목록 조회
-  const { data: foodItems = [], isLoading, refetch } = trpc.foodItems.list.useQuery();
+  const { data: items, isLoading, refetch } = trpc.foodItems.list.useQuery();
+
+  // 식품 수정
+  const updateMutation = trpc.foodItems.update.useMutation({
+    onSuccess: () => {
+      refetch();
+    },
+  });
 
   // 식품 삭제
   const deleteMutation = trpc.foodItems.delete.useMutation({
@@ -30,37 +39,17 @@ export default function HomeScreen() {
     },
   });
 
-
-
-  // 카테고리별 식품 필터링
-  const getFilteredItems = () => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-    return foodItems.filter((item) => {
-      if (!item.expirationDate) return false;
-      
-      const expDate = new Date(item.expirationDate);
-      const expDateOnly = new Date(expDate.getFullYear(), expDate.getMonth(), expDate.getDate());
-      const daysUntilExpiration = Math.ceil((expDateOnly.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-
-      if (selectedCategory === "정상") return daysUntilExpiration > 3;
-      if (selectedCategory === "임박") return daysUntilExpiration > 0 && daysUntilExpiration <= 3;
-      if (selectedCategory === "만료") return daysUntilExpiration <= 0;
-      return true; // 전체
-    });
-  };
-
-  const filteredItems = getFilteredItems();
+  useEffect(() => {
+    if (items) {
+      setFoodItems(items);
+    }
+  }, [items]);
 
   // 카테고리별 개수 계산
   const getCategoryCount = (category: string) => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
     return foodItems.filter((item) => {
-      if (!item.expirationDate) return false;
-      
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const expDate = new Date(item.expirationDate);
       const expDateOnly = new Date(expDate.getFullYear(), expDate.getMonth(), expDate.getDate());
       const daysUntilExpiration = Math.ceil((expDateOnly.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
@@ -72,11 +61,27 @@ export default function HomeScreen() {
     }).length;
   };
 
-  const handleDeleteItem = (id: number) => {
-    deleteMutation.mutate({ id });
+  // 필터링된 식품 목록
+  const filteredItems = foodItems.filter((item) => {
+    if (selectedCategory === "전체") return true;
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const expDate = new Date(item.expirationDate);
+    const expDateOnly = new Date(expDate.getFullYear(), expDate.getMonth(), expDate.getDate());
+    const daysUntilExpiration = Math.ceil((expDateOnly.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (selectedCategory === "정상") return daysUntilExpiration > 3;
+    if (selectedCategory === "임박") return daysUntilExpiration > 0 && daysUntilExpiration <= 3;
+    if (selectedCategory === "만료") return daysUntilExpiration <= 0;
+    return true;
+  });
+
+  const handleDeleteItem = (id: string | number) => {
+    deleteMutation.mutate({ id: Number(id) });
   };
 
-  const renderFoodItem = ({ item }: { item: any }) => {
+  const renderFoodItem = (item: any) => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const expDate = new Date(item.expirationDate);
@@ -92,37 +97,76 @@ export default function HomeScreen() {
     } else if (daysUntilExpiration <= 3) {
       statusColor = colors.warning;
       statusLabel = `${daysUntilExpiration}일 남음`;
+    } else {
+      statusLabel = `${daysUntilExpiration}일 남음`;
     }
 
     return (
-      <View className="bg-surface rounded-lg p-4 mb-3 border border-border flex-row items-center justify-between">
-        <View className="flex-1">
-          <Text className="text-base font-semibold text-foreground">{item.productName}</Text>
-          <Text className="text-sm text-muted mt-1">유통기한: {item.expirationDate}</Text>
-          {item.quantity && (
-            <Text className="text-sm text-muted">수량: {item.quantity}</Text>
-          )}
-          {item.notes && (
-            <Text className="text-sm text-muted">{item.notes}</Text>
-          )}
-        </View>
-        <View className="items-center gap-2">
-          <View
-            className="px-3 py-1 rounded-full"
-            style={{ backgroundColor: `${statusColor}20` }}
-          >
-            <Text className="text-xs font-semibold" style={{ color: statusColor }}>
-              {statusLabel}
-            </Text>
+      <TouchableOpacity
+        key={item.id}
+        onPress={() => router.push(`/food-detail/${item.id}`)}
+        activeOpacity={0.7}
+      >
+        <View className="bg-surface rounded-lg p-4 mb-3 border border-border">
+          <View className="flex-row items-start justify-between mb-3">
+            <View className="flex-1">
+              <Text className="text-base font-semibold text-foreground">{item.productName}</Text>
+              <Text className="text-sm text-muted mt-1">유통기한: {item.expirationDate}</Text>
+              {item.notes && (
+                <Text className="text-sm text-muted mt-1">{item.notes}</Text>
+              )}
+            </View>
+            <View
+              className="px-3 py-1 rounded-full ml-2"
+              style={{ backgroundColor: `${statusColor}20` }}
+            >
+              <Text className="text-xs font-semibold" style={{ color: statusColor }}>
+                {statusLabel}
+              </Text>
+            </View>
           </View>
-          <TouchableOpacity
-            onPress={() => handleDeleteItem(item.id)}
-            className="p-2"
-          >
-            <MaterialIcons name="delete" size={20} color={colors.error} />
-          </TouchableOpacity>
+
+          {/* 수량 조절 */}
+          <View className="flex-row items-center justify-between">
+            <View className="flex-row items-center gap-2">
+              <Text className="text-sm text-muted">수량:</Text>
+              <Text className="text-sm font-semibold text-foreground">{item.quantity || "1개"}</Text>
+            </View>
+            <View className="flex-row items-center gap-2">
+              <TouchableOpacity
+                onPress={() => {
+                  const currentQty = parseInt(String(item.quantity) || "1") || 1;
+                  updateMutation.mutate({
+                    id: Number(item.id),
+                    quantity: String(Math.max(1, currentQty - 1)),
+                  });
+                }}
+                className="bg-primary/20 rounded-full p-1"
+              >
+                <MaterialIcons name="remove" size={16} color={colors.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  const currentQty = parseInt(String(item.quantity) || "1") || 1;
+                  updateMutation.mutate({
+                    id: Number(item.id),
+                    quantity: String(currentQty + 1),
+                  });
+                }}
+                className="bg-primary/20 rounded-full p-1"
+              >
+                <MaterialIcons name="add" size={16} color={colors.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => handleDeleteItem(item.id)}
+                className="bg-error/20 rounded-full p-1 ml-2"
+              >
+                <MaterialIcons name="delete" size={16} color={colors.error} />
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -178,9 +222,7 @@ export default function HomeScreen() {
               >
                 <Text
                   className={`text-sm font-semibold ${
-                    selectedCategory === category
-                      ? "text-background"
-                      : "text-foreground"
+                    selectedCategory === category ? "text-background" : "text-foreground"
                   }`}
                 >
                   {category}
@@ -196,19 +238,18 @@ export default function HomeScreen() {
             <View className="items-center justify-center py-8">
               <Text className="text-muted">로딩 중...</Text>
             </View>
-          ) : filteredItems.length > 0 ? (
-            <FlatList
-              data={filteredItems}
-              renderItem={renderFoodItem}
-              keyExtractor={(item) => String(item.id)}
-              scrollEnabled={false}
-              contentContainerStyle={{ paddingBottom: 16 }}
-            />
-          ) : (
-            <View className="items-center justify-center py-12">
+          ) : filteredItems.length === 0 ? (
+            <View className="items-center justify-center py-8">
               <MaterialIcons name="inbox" size={48} color={colors.muted} />
-              <Text className="text-foreground font-semibold mt-4">식품이 없습니다</Text>
-              <Text className="text-muted text-sm mt-2">카메라로 사진을 촬영해 추가하세요</Text>
+              <Text className="text-muted text-center mt-4">
+                {selectedCategory === "전체"
+                  ? "식품이 없습니다.\n카메라로 사진을 촬영해 추가하세요"
+                  : `${selectedCategory} 상태의 식품이 없습니다`}
+              </Text>
+            </View>
+          ) : (
+            <View>
+              {filteredItems.map((item) => renderFoodItem(item))}
             </View>
           )}
         </View>
@@ -221,9 +262,9 @@ export default function HomeScreen() {
       <View className="absolute bottom-24 right-6">
         <TouchableOpacity
           onPress={() => router.push("/camera")}
-          className="w-16 h-16 rounded-full bg-primary items-center justify-center shadow-lg"
+          className="bg-primary rounded-full p-4 shadow-lg"
           style={{
-            shadowColor: "#000",
+            shadowColor: colors.primary,
             shadowOffset: { width: 0, height: 4 },
             shadowOpacity: 0.3,
             shadowRadius: 8,
