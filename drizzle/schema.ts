@@ -25,4 +25,22 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-// TODO: Add your tables here
+/**
+ * Food inventory items table
+ * Stores food items with product name, expiration date, image, and metadata
+ */
+export const foodItems = mysqlTable("foodItems", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  productName: varchar("productName", { length: 255 }).notNull(),
+  expirationDate: timestamp("expirationDate").notNull(),
+  imageUrl: text("imageUrl"), // S3 URL of the food image
+  category: varchar("category", { length: 100 }), // vegetable, meat, dairy, etc
+  quantity: varchar("quantity", { length: 100 }), // 500g, 1 bottle, etc
+  notes: text("notes"), // User notes
+  addedAt: timestamp("addedAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type FoodItem = typeof foodItems.$inferSelect;
+export type InsertFoodItem = typeof foodItems.$inferInsert;

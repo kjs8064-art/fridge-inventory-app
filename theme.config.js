@@ -1,14 +1,22 @@
 /** @type {const} */
 const themeColors = {
-  primary: { light: '#0a7ea4', dark: '#0a7ea4' },
-  background: { light: '#ffffff', dark: '#151718' },
-  surface: { light: '#f5f5f5', dark: '#1e2022' },
-  foreground: { light: '#11181C', dark: '#ECEDEE' },
-  muted: { light: '#687076', dark: '#9BA1A6' },
-  border: { light: '#E5E7EB', dark: '#334155' },
-  success: { light: '#22C55E', dark: '#4ADE80' },
-  warning: { light: '#F59E0B', dark: '#FBBF24' },
-  error: { light: '#EF4444', dark: '#F87171' },
+  // Primary: Fresh Green (정상 상태, 주요 버튼)
+  primary: { light: '#2ECC71', dark: '#27AE60' },
+  // Secondary: Fresh Blue (보조 요소)
+  secondary: { light: '#3498DB', dark: '#2980B9' },
+  // Background
+  background: { light: '#FFFFFF', dark: '#1A1A1A' },
+  // Surface (카드, 엘리먼트)
+  surface: { light: '#F8F9FA', dark: '#2D2D2D' },
+  // Text
+  foreground: { light: '#1A1A1A', dark: '#FFFFFF' },
+  muted: { light: '#666666', dark: '#AAAAAA' },
+  // Border
+  border: { light: '#E0E0E0', dark: '#404040' },
+  // Status Colors
+  success: { light: '#27AE60', dark: '#2ECC71' },     // 정상 (7일 이상)
+  warning: { light: '#F39C12', dark: '#E67E22' },     // 임박 (3-6일)
+  error: { light: '#E74C3C', dark: '#C0392B' },       // 만료 (0일 이하)
 };
 
 module.exports = { themeColors };

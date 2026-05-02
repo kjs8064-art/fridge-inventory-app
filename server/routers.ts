@@ -1,10 +1,11 @@
+import { z } from "zod";
 import { COOKIE_NAME } from "../shared/const.js";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router } from "./_core/trpc";
+import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import * as db from "./db";
 
 export const appRouter = router({
-  // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
@@ -17,12 +18,111 @@ export const appRouter = router({
     }),
   }),
 
-  // TODO: add feature routers here, e.g.
-  // todo: router({
-  //   list: protectedProcedure.query(({ ctx }) =>
-  //     db.getUserTodos(ctx.user.id)
-  //   ),
-  // }),
+  // Food inventory management
+  foodItems: router({
+    // Get all food items for the current user
+    list: protectedProcedure.query(({ ctx }) =>
+      db.getUserFoodItems(ctx.user.id)
+    ),
+
+    // Create a new food item
+    create: protectedProcedure
+      .input(
+        z.object({
+          productName: z.string().min(1).max(255),
+          expirationDate: z.string().or(z.date()),
+          imageUrl: z.string().optional(),
+          category: z.string().max(100).optional(),
+          quantity: z.string().max(100).optional(),
+          notes: z.string().optional(),
+        })
+      )
+      .mutation(({ ctx, input }) => {
+        const expirationDate = typeof input.expirationDate === "string"
+          ? new Date(input.expirationDate)
+          : input.expirationDate;
+
+        return db.createFoodItem({
+          userId: ctx.user.id,
+          productName: input.productName,
+          expirationDate,
+          imageUrl: input.imageUrl,
+          category: input.category,
+          quantity: input.quantity,
+          notes: input.notes,
+        });
+      }),
+
+    // Update a food item
+    update: protectedProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          productName: z.string().min(1).max(255).optional(),
+          expirationDate: z.string().or(z.date()).optional(),
+          imageUrl: z.string().optional(),
+          category: z.string().max(100).optional(),
+          quantity: z.string().max(100).optional(),
+          notes: z.string().optional(),
+        })
+      )
+      .mutation(({ input }) => {
+        const updateData: any = {};
+        if (input.productName !== undefined) updateData.productName = input.productName;
+        if (input.imageUrl !== undefined) updateData.imageUrl = input.imageUrl;
+        if (input.category !== undefined) updateData.category = input.category;
+        if (input.quantity !== undefined) updateData.quantity = input.quantity;
+        if (input.notes !== undefined) updateData.notes = input.notes;
+        if (input.expirationDate !== undefined) {
+          updateData.expirationDate = typeof input.expirationDate === "string"
+            ? new Date(input.expirationDate)
+            : input.expirationDate;
+        }
+
+        return db.updateFoodItem(input.id, updateData);
+      }),
+
+    // Delete a food item
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(({ input }) => db.deleteFoodItem(input.id)),
+
+    // Get a single food item
+    get: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(({ input }) => db.getFoodItem(input.id)),
+  }),
+
+  // AI image recognition endpoint
+  recognition: router({
+    // Recognize food from image URL
+    recognize: publicProcedure
+      .input(
+        z.object({
+          imageUrl: z.string().url(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        try {
+          // TODO: Implement actual AI image recognition using invokeLLM
+          // For now, return placeholder values
+          return {
+            productName: "Recognized Product",
+            expirationDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+            category: "기타",
+            confidence: 0.7,
+          };
+        } catch (error) {
+          console.error("AI recognition error:", error);
+          return {
+            productName: "Unknown Product",
+            expirationDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+            category: "기타",
+            confidence: 0.3,
+          };
+        }
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { InsertUser, users, foodItems, InsertFoodItem, FoodItem } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -89,4 +89,73 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+// Food Items queries
+
+export async function getUserFoodItems(userId: number): Promise<FoodItem[]> {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get food items: database not available");
+    return [];
+  }
+
+  try {
+    return await db
+      .select()
+      .from(foodItems)
+      .where(eq(foodItems.userId, userId))
+      .orderBy(desc(foodItems.addedAt));
+  } catch (error) {
+    console.error("[Database] Failed to get food items:", error);
+    return [];
+  }
+}
+
+export async function createFoodItem(data: InsertFoodItem): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  try {
+    const result = await db.insert(foodItems).values(data);
+    return (result as any).insertId as number;
+  } catch (error) {
+    console.error("[Database] Failed to create food item:", error);
+    throw error;
+  }
+}
+
+export async function updateFoodItem(id: number, data: Partial<InsertFoodItem>): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  try {
+    await db.update(foodItems).set(data).where(eq(foodItems.id, id));
+  } catch (error) {
+    console.error("[Database] Failed to update food item:", error);
+    throw error;
+  }
+}
+
+export async function deleteFoodItem(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  try {
+    await db.delete(foodItems).where(eq(foodItems.id, id));
+  } catch (error) {
+    console.error("[Database] Failed to delete food item:", error);
+    throw error;
+  }
+}
+
+export async function getFoodItem(id: number): Promise<FoodItem | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  try {
+    const result = await db.select().from(foodItems).where(eq(foodItems.id, id)).limit(1);
+    return result.length > 0 ? result[0] : undefined;
+  } catch (error) {
+    console.error("[Database] Failed to get food item:", error);
+    return undefined;
+  }
+}
