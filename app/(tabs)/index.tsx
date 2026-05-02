@@ -102,31 +102,31 @@ export default function HomeScreen() {
 
   return (
     <ScreenContainer className="p-0">
-      {/* Premium Header - Hot Pink */}
-      <View className="bg-primary px-6 py-6">
+      {/* Clean Header */}
+      <View className="bg-background px-6 py-6 border-b-2" style={{ borderBottomColor: colors.primary }}>
         <View className="flex-row items-center justify-between mb-4">
           <View>
-            <Text className="text-3xl font-bold text-background">SnapStock</Text>
-            <Text className="text-sm text-background opacity-80 mt-1">사진 한 장, 재고 완성</Text>
+            <Text className="text-3xl font-bold text-primary">SnapStock</Text>
+            <Text className="text-sm text-muted mt-1">사진 한 장, 재고 완성</Text>
           </View>
-          <View className="bg-background opacity-20 rounded-full p-3">
+          <View className="bg-primary rounded-full p-3">
             <MaterialIcons name="camera-alt" size={24} color={colors.background} />
           </View>
         </View>
 
         {/* Quick Stats */}
         <View className="flex-row gap-2">
-          <View className="flex-1 bg-background opacity-15 rounded-lg p-3">
-            <Text className="text-xs text-background opacity-70">전체</Text>
-            <Text className="text-xl font-bold text-background mt-1">{stats.total}</Text>
+          <View className="flex-1 bg-surface rounded-lg p-3 border border-border">
+            <Text className="text-xs text-muted">전체</Text>
+            <Text className="text-xl font-bold text-foreground mt-1">{stats.total}</Text>
           </View>
-          <View className="flex-1 bg-background opacity-15 rounded-lg p-3">
-            <Text className="text-xs text-background opacity-70">임박</Text>
-            <Text className="text-xl font-bold text-background mt-1">{stats.warning}</Text>
+          <View className="flex-1 bg-surface rounded-lg p-3 border border-border">
+            <Text className="text-xs text-muted">임박</Text>
+            <Text className="text-xl font-bold text-warning mt-1">{stats.warning}</Text>
           </View>
-          <View className="flex-1 bg-background opacity-15 rounded-lg p-3">
-            <Text className="text-xs text-background opacity-70">만료</Text>
-            <Text className="text-xl font-bold text-background mt-1">{stats.expired}</Text>
+          <View className="flex-1 bg-surface rounded-lg p-3 border border-border">
+            <Text className="text-xs text-muted">만료</Text>
+            <Text className="text-xl font-bold text-error mt-1">{stats.expired}</Text>
           </View>
         </View>
       </View>
