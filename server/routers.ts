@@ -4,7 +4,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { invokeLLM } from "./_core/llm";
-import { storagePut } from "./storage";
+import { storagePut, storageGetSignedUrl } from "./storage";
 import * as db from "./db";
 
 // Helper function to safely extract text from LLM response
@@ -157,7 +157,10 @@ export const appRouter = router({
           // 1. Upload image to S3
           const buffer = Buffer.from(input.imageBase64, "base64");
           const fileName = `food-recognition/${Date.now()}.jpg`;
-          const { url: imageUrl } = await storagePut(fileName, buffer, input.mimeType);
+          const { key, url: relativeUrl } = await storagePut(fileName, buffer, input.mimeType);
+          
+          // Get signed absolute URL for LLM
+          const imageUrl = await storageGetSignedUrl(key);
 
           console.log("[Recognition] Image uploaded to:", imageUrl);
 
@@ -321,7 +324,10 @@ JSON만 반환하세요.`;
           // 1. Upload image to S3
           const buffer = Buffer.from(input.imageBase64, "base64");
           const fileName = `receipt-recognition/${Date.now()}.jpg`;
-          const { url: imageUrl } = await storagePut(fileName, buffer, input.mimeType);
+          const { key, url: relativeUrl } = await storagePut(fileName, buffer, input.mimeType);
+          
+          // Get signed absolute URL for LLM
+          const imageUrl = await storageGetSignedUrl(key);
 
           console.log("[Receipt Recognition] Image uploaded to:", imageUrl);
 
