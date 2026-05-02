@@ -6,6 +6,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import * as FileSystem from "expo-file-system/legacy";
+import { Platform } from "react-native";
 
 export default function RecognitionResultScreen() {
   const colors = useColors();
@@ -65,13 +66,48 @@ export default function RecognitionResultScreen() {
     setDebugInfo("이미지 분석 중...");
     try {
       console.log("[Client] Starting image recognition for:", imageUri);
+      console.log("[Client] Platform:", Platform.OS);
       
-      // 1. Read image file and convert to base64
-      const base64 = await FileSystem.readAsStringAsync(imageUri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
+      if (!imageUri) {
+        throw new Error("이미지 URI가 없습니다");
+      }
+
+      let base64: string;
+
+      // 웹 환경 처리 (blob URL 또는 data URL)
+      if (Platform.OS === "web" || imageUri.startsWith("blob:") || imageUri.startsWith("data:")) {
+        console.log("[Client] Web environment detected, using fetch");
+        
+        if (imageUri.startsWith("data:")) {
+          // 이미 data URL인 경우
+          base64 = imageUri.split(",")[1] || "";
+        } else {
+          // blob URL인 경우
+          const response = await fetch(imageUri);
+          const blob = await response.blob();
+          base64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const result = reader.result as string;
+              resolve(result.split(",")[1] || result);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+        }
+      } else {
+        // 네이티브 환경 처리
+        console.log("[Client] Native environment detected, using FileSystem");
+        base64 = await FileSystem.readAsStringAsync(imageUri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+      }
       
       console.log("[Client] Image converted to base64, length:", base64.length);
+
+      if (!base64 || base64.length === 0) {
+        throw new Error("Base64 변환 실패");
+      }
 
       // 2. Call recognition API
       await recognizeMutation.mutateAsync({
@@ -80,9 +116,10 @@ export default function RecognitionResultScreen() {
       });
     } catch (error) {
       console.error("Failed to read image:", error);
-      setRecognitionError("이미지를 읽을 수 없습니다.");
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      setRecognitionError(`이미지를 읽을 수 없습니다: ${errorMsg}`);
       setIsRecognizing(false);
-      Alert.alert("오류", "이미지를 읽을 수 없습니다.");
+      Alert.alert("오류", `이미지를 읽을 수 없습니다: ${errorMsg}`);
     }
   };
 

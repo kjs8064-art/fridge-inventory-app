@@ -118,15 +118,18 @@ export const appRouter = router({
           console.log("[Recognition] Image uploaded to:", imageUrl);
 
           // 2. Call LLM with the uploaded image URL
-          const systemPrompt = `당신은 한국 식품 인식 전문가입니다. 식품 이미지를 분석하고 다음 정보를 추출하세요:
+          const systemPrompt = `당신은 한국 식품 인식 전문가입니다. 식품 이미지를 분석하고 다음 정보를 JSON 형식으로 추출하세요:
 
-1. 제품명 (productName): 정확한 제품 이름 (예: 우유, 계란, 요구르트, 치즈 등)
-2. 유통기한 (expirationDate): YYYY-MM-DD 형식. 보이지 않으면 일반적인 유통기한으로 추정
-3. 분류 (category): 채소, 과일, 육류, 유제품, 음료, 냉동식품, 기타 중 하나
-4. 신뢰도 (confidence): 0.0~1.0 사이의 숫자
+필수 필드:
+- productName (string): 정확한 제품 이름. 예: 우유, 계란, 요구르트, 치즈, 두유, 요플레 등
+- expirationDate (string): YYYY-MM-DD 형식. 이미지에 보이지 않으면 일반적인 유통기한으로 추정. 반드시 유효한 날짜 형식
+- category (string): 채소, 과일, 육류, 유제품, 음료, 냉동식품, 기타 중 하나
+- confidence (number): 0.0~1.0 사이의 숫자. 인식 신뢰도
 
-반드시 JSON 형식으로 응답하세요. 예시:
-{"productName": "우유", "expirationDate": "2026-05-15", "category": "유제품", "confidence": 0.95}`;
+응답 형식 (JSON만 반환):
+{"productName": "제품명", "expirationDate": "2026-05-15", "category": "분류", "confidence": 0.95}
+
+중요: JSON만 반환하고 다른 텍스트는 포함하지 마세요.`;
 
           const userPrompt = `이 식품 이미지를 분석하고 제품명, 유통기한, 분류를 추출해주세요.`;
 
