@@ -1,276 +1,227 @@
-import { ScrollView, Text, View, TouchableOpacity, Pressable, Alert } from "react-native";
+import { ScrollView, Text, View, TouchableOpacity, FlatList } from "react-native";
 import { ScreenContainer } from "@/components/screen-container";
-import { trpc } from "@/lib/trpc";
-import { useColors } from "@/hooks/use-colors";
-import { useEffect, useState } from "react";
 import { router } from "expo-router";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-
+import { useColors } from "@/hooks/use-colors";
+import { useEffect, useState } from "react";
+import { trpc } from "@/lib/trpc";
+import AdMobBanner from "@/components/admob-banner";
+/**
+ * Home Screen - SnapStock 메인 화면
+ * 
+ * 주요 기능:
+ * - 냉장고 재고 목록 표시
+ * - 카메라 버튼으로 사진 촬영 및 AI 인식
+ * - 식품 추가/삭제/수정
+ * - 유통기한별 카테고리 표시
+ * - AdMob 배너 광고 표시
+ */
 export default function HomeScreen() {
   const colors = useColors();
-  const [selectedFilter, setSelectedFilter] = useState<"all" | "normal" | "warning" | "expired">("all");
+  const [selectedCategory, setSelectedCategory] = useState<"전체" | "정상" | "임박" | "만료">("전체");
 
-  // Fetch food items
-  const { data: foodItems = [], isLoading: itemsLoading, refetch } = trpc.foodItems.list.useQuery(
-    undefined,
-    {
-      enabled: true,
-    }
-  );
+  // 식품 목록 조회
+  const { data: foodItems = [], isLoading, refetch } = trpc.foodItems.list.useQuery();
 
-  // Update mutation
-  const updateMutation = trpc.foodItems.update.useMutation({
+  // 식품 삭제
+  const deleteMutation = trpc.foodItems.delete.useMutation({
     onSuccess: () => {
       refetch();
     },
   });
 
-  useEffect(() => {
-    refetch();
-  }, []);
 
-  // Calculate days until expiration
-  const getDaysUntilExpiration = (expirationDate: Date | string) => {
-    const expDate = typeof expirationDate === "string" ? new Date(expirationDate) : expirationDate;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    expDate.setHours(0, 0, 0, 0);
-    const diffTime = expDate.getTime() - today.getTime();
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  };
 
-  // Get status color
-  const getStatusColor = (daysLeft: number) => {
-    if (daysLeft >= 7) return colors.success;
-    if (daysLeft >= 3) return colors.warning;
-    return colors.error;
-  };
+  // 카테고리별 식품 필터링
+  const getFilteredItems = () => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-  // Get status label
-  const getStatusLabel = (daysLeft: number) => {
-    if (daysLeft < 0) return "만료됨";
-    if (daysLeft === 0) return "오늘";
-    if (daysLeft === 1) return "내일";
-    return `${daysLeft}일`;
-  };
+    return foodItems.filter((item) => {
+      if (!item.expirationDate) return false;
+      
+      const expDate = new Date(item.expirationDate);
+      const expDateOnly = new Date(expDate.getFullYear(), expDate.getMonth(), expDate.getDate());
+      const daysUntilExpiration = Math.ceil((expDateOnly.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-  // Handle quantity change
-  const handleQuantityChange = (itemId: number, currentQuantity: string | null, delta: number) => {
-    const current = parseInt(currentQuantity || "0") || 0;
-    const newQuantity = Math.max(0, current + delta);
-    
-    updateMutation.mutate({
-      id: itemId,
-      quantity: newQuantity.toString(),
+      if (selectedCategory === "정상") return daysUntilExpiration > 3;
+      if (selectedCategory === "임박") return daysUntilExpiration > 0 && daysUntilExpiration <= 3;
+      if (selectedCategory === "만료") return daysUntilExpiration <= 0;
+      return true; // 전체
     });
   };
 
-  // Filter items
-  const filteredItems = foodItems.filter((item) => {
-    const daysLeft = getDaysUntilExpiration(item.expirationDate);
-    if (selectedFilter === "all") return true;
-    if (selectedFilter === "normal") return daysLeft >= 7;
-    if (selectedFilter === "warning") return daysLeft >= 3 && daysLeft < 7;
-    if (selectedFilter === "expired") return daysLeft < 3;
-    return true;
-  });
+  const filteredItems = getFilteredItems();
 
-  // Get stats
-  const stats = {
-    total: foodItems.length,
-    normal: foodItems.filter((item) => getDaysUntilExpiration(item.expirationDate) >= 7).length,
-    warning: foodItems.filter((item) => {
-      const days = getDaysUntilExpiration(item.expirationDate);
-      return days >= 3 && days < 7;
-    }).length,
-    expired: foodItems.filter((item) => getDaysUntilExpiration(item.expirationDate) < 3).length,
+  // 카테고리별 개수 계산
+  const getCategoryCount = (category: string) => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    return foodItems.filter((item) => {
+      if (!item.expirationDate) return false;
+      
+      const expDate = new Date(item.expirationDate);
+      const expDateOnly = new Date(expDate.getFullYear(), expDate.getMonth(), expDate.getDate());
+      const daysUntilExpiration = Math.ceil((expDateOnly.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (category === "정상") return daysUntilExpiration > 3;
+      if (category === "임박") return daysUntilExpiration > 0 && daysUntilExpiration <= 3;
+      if (category === "만료") return daysUntilExpiration <= 0;
+      return true;
+    }).length;
   };
 
-  // Delete mutation
-  const deleteMutation = trpc.foodItems.delete.useMutation({
-    onSuccess: () => {
-      console.log("[Delete] Mutation success, refetching...");
-      refetch();
-    },
-    onError: (error) => {
-      console.error("[Delete] Mutation error:", error);
-      Alert.alert("삭제 실패", "식품 삭제에 실패했습니다. 다시 시도해주세요.");
-    },
-  });
-
   const handleDeleteItem = (id: number) => {
-    console.log("[Delete] Delete button clicked for item:", id);
-    Alert.alert("삭제 확인", "이 식품을 삭제하시겠습니까?", [
-      { text: "취소", onPress: () => console.log("[Delete] Cancelled"), style: "cancel" },
-      {
-        text: "삭제",
-        onPress: () => {
-          console.log("[Delete] Confirmed, calling mutate with id:", id);
-          deleteMutation.mutate({ id });
-        },
-        style: "destructive",
-      },
-    ]);
+    deleteMutation.mutate({ id });
+  };
+
+  const renderFoodItem = ({ item }: { item: any }) => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const expDate = new Date(item.expirationDate);
+    const expDateOnly = new Date(expDate.getFullYear(), expDate.getMonth(), expDate.getDate());
+    const daysUntilExpiration = Math.ceil((expDateOnly.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+    let statusColor = colors.success;
+    let statusLabel = "정상";
+
+    if (daysUntilExpiration <= 0) {
+      statusColor = colors.error;
+      statusLabel = "만료됨";
+    } else if (daysUntilExpiration <= 3) {
+      statusColor = colors.warning;
+      statusLabel = `${daysUntilExpiration}일 남음`;
+    }
+
+    return (
+      <View className="bg-surface rounded-lg p-4 mb-3 border border-border flex-row items-center justify-between">
+        <View className="flex-1">
+          <Text className="text-base font-semibold text-foreground">{item.productName}</Text>
+          <Text className="text-sm text-muted mt-1">유통기한: {item.expirationDate}</Text>
+          {item.quantity && (
+            <Text className="text-sm text-muted">수량: {item.quantity}</Text>
+          )}
+          {item.notes && (
+            <Text className="text-sm text-muted">{item.notes}</Text>
+          )}
+        </View>
+        <View className="items-center gap-2">
+          <View
+            className="px-3 py-1 rounded-full"
+            style={{ backgroundColor: `${statusColor}20` }}
+          >
+            <Text className="text-xs font-semibold" style={{ color: statusColor }}>
+              {statusLabel}
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => handleDeleteItem(item.id)}
+            className="p-2"
+          >
+            <MaterialIcons name="delete" size={20} color={colors.error} />
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
   };
 
   return (
-    <ScreenContainer className="p-0">
-      {/* Clean Header */}
-      <View className="bg-background px-6 py-6 border-b-2" style={{ borderBottomColor: colors.primary }}>
-        <View className="flex-row items-center justify-between mb-4">
-          <View>
-            <Text className="text-3xl font-bold text-primary">SnapStock</Text>
-            <Text className="text-sm text-muted mt-1">사진 한 장, 재고 완성</Text>
-          </View>
-          <View className="bg-primary rounded-full p-3">
-            <MaterialIcons name="camera-alt" size={24} color={colors.background} />
+    <ScreenContainer className="p-0 flex-1">
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
+        {/* 헤더 */}
+        <View className="bg-primary px-6 py-6">
+          <Text className="text-3xl font-bold text-background">SnapStock</Text>
+          <Text className="text-sm text-background/80 mt-1">사진 한 장, 재고 완성</Text>
+        </View>
+
+        {/* 통계 카드 */}
+        <View className="px-6 py-4 gap-3">
+          <View className="flex-row gap-3">
+            <View className="flex-1 bg-surface rounded-lg p-4 border border-border items-center">
+              <Text className="text-2xl font-bold text-foreground">{foodItems.length}</Text>
+              <Text className="text-xs text-muted mt-1">전체</Text>
+            </View>
+            <View className="flex-1 bg-surface rounded-lg p-4 border border-border items-center">
+              <Text className="text-2xl font-bold" style={{ color: colors.success }}>
+                {getCategoryCount("정상")}
+              </Text>
+              <Text className="text-xs text-muted mt-1">정상</Text>
+            </View>
+            <View className="flex-1 bg-surface rounded-lg p-4 border border-border items-center">
+              <Text className="text-2xl font-bold" style={{ color: colors.warning }}>
+                {getCategoryCount("임박")}
+              </Text>
+              <Text className="text-xs text-muted mt-1">임박</Text>
+            </View>
+            <View className="flex-1 bg-surface rounded-lg p-4 border border-border items-center">
+              <Text className="text-2xl font-bold" style={{ color: colors.error }}>
+                {getCategoryCount("만료")}
+              </Text>
+              <Text className="text-xs text-muted mt-1">만료</Text>
+            </View>
           </View>
         </View>
 
-        {/* Quick Stats */}
-        <View className="flex-row gap-2">
-          <View className="flex-1 bg-surface rounded-lg p-3 border border-border">
-            <Text className="text-xs text-muted">전체</Text>
-            <Text className="text-xl font-bold text-foreground mt-1">{stats.total}</Text>
-          </View>
-          <View className="flex-1 bg-surface rounded-lg p-3 border border-border">
-            <Text className="text-xs text-muted">임박</Text>
-            <Text className="text-xl font-bold text-warning mt-1">{stats.warning}</Text>
-          </View>
-          <View className="flex-1 bg-surface rounded-lg p-3 border border-border">
-            <Text className="text-xs text-muted">만료</Text>
-            <Text className="text-xl font-bold text-error mt-1">{stats.expired}</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Filter Tabs */}
-      <View className="flex-row px-4 py-4 gap-2 border-b border-border">
-        {[
-          { key: "all", label: "전체" },
-          { key: "normal", label: "정상" },
-          { key: "warning", label: "임박" },
-          { key: "expired", label: "만료" },
-        ].map((filter) => (
-          <TouchableOpacity
-            key={filter.key}
-            onPress={() => setSelectedFilter(filter.key as any)}
-            className={`px-4 py-2 rounded-full ${
-              selectedFilter === filter.key
-                ? "bg-primary"
-                : "bg-surface border border-border"
-            }`}
-          >
-            <Text
-              className={`text-sm font-semibold ${
-                selectedFilter === filter.key ? "text-background" : "text-foreground"
-              }`}
-            >
-              {filter.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Food Items List */}
-      <ScrollView className="flex-1 px-4 py-4">
-        {itemsLoading ? (
-          <View className="items-center justify-center py-12">
-            <MaterialIcons name="hourglass-empty" size={40} color={colors.muted} />
-            <Text className="text-muted mt-2">로딩 중...</Text>
-          </View>
-        ) : filteredItems.length === 0 ? (
-          <View className="items-center justify-center py-12">
-            <MaterialIcons name="inbox" size={48} color={colors.muted} />
-            <Text className="text-lg font-semibold text-foreground mt-4">식품이 없습니다</Text>
-            <Text className="text-muted text-center mt-2">
-              카메라 버튼을 눌러 사진을 찍으면{"\n"}자동으로 식품이 등록됩니다
-            </Text>
-          </View>
-        ) : (
-          <View className="gap-3 pb-6">
-            {filteredItems.map((item) => {
-              const daysLeft = getDaysUntilExpiration(item.expirationDate);
-              const statusColor = getStatusColor(daysLeft);
-              const statusLabel = getStatusLabel(daysLeft);
-              const quantity = parseInt(item.quantity || "0") || 0;
-
-              return (
-                <View
-                  key={item.id}
-                  className="bg-surface rounded-lg p-4 border border-border"
+        {/* 카테고리 필터 */}
+        <View className="px-6 py-2 gap-2">
+          <View className="flex-row gap-2">
+            {(["전체", "정상", "임박", "만료"] as const).map((category) => (
+              <TouchableOpacity
+                key={category}
+                onPress={() => setSelectedCategory(category)}
+                className={`px-4 py-2 rounded-full ${
+                  selectedCategory === category
+                    ? "bg-primary"
+                    : "bg-surface border border-border"
+                }`}
+              >
+                <Text
+                  className={`text-sm font-semibold ${
+                    selectedCategory === category
+                      ? "text-background"
+                      : "text-foreground"
+                  }`}
                 >
-                  {/* Top Row: Product Name and Delete */}
-                  <View className="flex-row items-start justify-between mb-3">
-                    <Pressable
-                      onPress={() => router.push({ pathname: "/food-detail/[id]", params: { id: item.id.toString() } })}
-                      className="flex-1"
-                    >
-                      <View className="flex-1">
-                        <Text className="text-base font-semibold text-foreground">{item.productName}</Text>
-                        <View className="flex-row items-center gap-2 mt-2">
-                          <View
-                            className="rounded-full px-3 py-1"
-                            style={{ backgroundColor: statusColor + "20" }}
-                          >
-                            <Text className="text-xs font-semibold" style={{ color: statusColor }}>
-                              {statusLabel}
-                            </Text>
-                          </View>
-                          <Text className="text-xs text-muted">{item.category}</Text>
-                        </View>
-                      </View>
-                    </Pressable>
-                    <TouchableOpacity
-                      onPress={() => handleDeleteItem(item.id)}
-                      className="p-2 ml-2"
-                      activeOpacity={0.6}
-                    >
-                      <MaterialIcons name="close" size={20} color={colors.error} />
-                    </TouchableOpacity>
-                  </View>
-
-                  {/* Bottom Row: Quantity Controls */}
-                  <View className="flex-row items-center justify-between bg-background rounded-lg p-2 border border-border">
-                    <Text className="text-xs text-muted">수량</Text>
-                    
-                    <View className="flex-row items-center gap-2">
-                      {/* Minus Button */}
-                      <TouchableOpacity
-                        onPress={() => handleQuantityChange(item.id, item.quantity || "0", -1)}
-                        className="bg-primary rounded-full p-1"
-                        disabled={updateMutation.isPending}
-                      >
-                        <MaterialIcons name="remove" size={12} color={colors.background} />
-                      </TouchableOpacity>
-
-                      {/* Quantity Display */}
-                      <View className="min-w-8 items-center">
-                        <Text className="text-xs font-bold text-foreground">{quantity}</Text>
-                      </View>
-
-                      {/* Plus Button */}
-                      <TouchableOpacity
-                        onPress={() => handleQuantityChange(item.id, item.quantity || "0", 1)}
-                        className="bg-primary rounded-full p-1"
-                        disabled={updateMutation.isPending}
-                      >
-                        <MaterialIcons name="add" size={12} color={colors.background} />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </View>
-              );
-            })}
+                  {category}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
-        )}
+        </View>
+
+        {/* 식품 목록 */}
+        <View className="px-6 py-4 flex-1">
+          {isLoading ? (
+            <View className="items-center justify-center py-8">
+              <Text className="text-muted">로딩 중...</Text>
+            </View>
+          ) : filteredItems.length > 0 ? (
+            <FlatList
+              data={filteredItems}
+              renderItem={renderFoodItem}
+              keyExtractor={(item) => String(item.id)}
+              scrollEnabled={false}
+              contentContainerStyle={{ paddingBottom: 16 }}
+            />
+          ) : (
+            <View className="items-center justify-center py-12">
+              <MaterialIcons name="inbox" size={48} color={colors.muted} />
+              <Text className="text-foreground font-semibold mt-4">식품이 없습니다</Text>
+              <Text className="text-muted text-sm mt-2">카메라로 사진을 촬영해 추가하세요</Text>
+            </View>
+          )}
+        </View>
+
+        {/* 배너 광고 */}
+        <AdMobBanner position="bottom" size="smartBannerPortrait" />
       </ScrollView>
 
-      {/* Floating Camera Button - Hot Pink */}
-      <View className="absolute bottom-6 right-6">
+      {/* 플로팅 카메라 버튼 */}
+      <View className="absolute bottom-24 right-6">
         <TouchableOpacity
           onPress={() => router.push("/camera")}
-          className="bg-primary rounded-full p-5 shadow-lg"
+          className="w-16 h-16 rounded-full bg-primary items-center justify-center shadow-lg"
           style={{
             shadowColor: "#000",
             shadowOffset: { width: 0, height: 4 },

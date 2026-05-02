@@ -41,3 +41,16 @@
 - [x] 웹 환경 blob URL 처리 (recognition-result.tsx)
 - [x] 영수증 인식 Platform 감지 개선 (receipt-result.tsx)
 - [x] MIME 타입 동적 처리 (web blob 타입 사용)
+
+## Phase 7: AdMob 광고 통합
+- [x] 구글 AdMob 정책 및 지침 보고서 작성
+- [x] expo-ads-admob 패키지 설치
+- [x] AdMob 설정 파일 생성 (admob-config.ts)
+- [x] 배너 광고 컴포넌트 구현 (admob-banner.tsx)
+- [x] 전면 광고 관리 모듈 구현 (admob-interstitial.ts)
+- [x] 홈 화면에 배너 광고 추가
+- [ ] 카메라 화면에 전면 광고 추가 (선택적)
+- [ ] 영수증 인식 화면에 전면 광고 추가 (선택적)
+- [ ] AdMob 계정 설정 및 실제 광고 ID 발급
+- [ ] 테스트 모드에서 광고 표시 검증
+- [ ] 실제 광고 ID로 변경 및 배포 준비
