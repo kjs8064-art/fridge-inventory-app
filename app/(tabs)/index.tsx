@@ -18,6 +18,13 @@ export default function HomeScreen() {
     }
   );
 
+  // Update mutation
+  const updateMutation = trpc.foodItems.update.useMutation({
+    onSuccess: () => {
+      refetch();
+    },
+  });
+
   useEffect(() => {
     refetch();
   }, []);
@@ -45,6 +52,17 @@ export default function HomeScreen() {
     if (daysLeft === 0) return "오늘";
     if (daysLeft === 1) return "내일";
     return `${daysLeft}일`;
+  };
+
+  // Handle quantity change
+  const handleQuantityChange = (itemId: number, currentQuantity: string | null, delta: number) => {
+    const current = parseInt(currentQuantity || "0") || 0;
+    const newQuantity = Math.max(0, current + delta);
+    
+    updateMutation.mutate({
+      id: itemId,
+      quantity: newQuantity.toString(),
+    });
   };
 
   // Filter items
@@ -84,7 +102,7 @@ export default function HomeScreen() {
 
   return (
     <ScreenContainer className="p-0">
-      {/* Premium Header */}
+      {/* Premium Header - Hot Pink */}
       <View className="bg-primary px-6 py-6">
         <View className="flex-row items-center justify-between mb-4">
           <View>
@@ -162,20 +180,15 @@ export default function HomeScreen() {
               const daysLeft = getDaysUntilExpiration(item.expirationDate);
               const statusColor = getStatusColor(daysLeft);
               const statusLabel = getStatusLabel(daysLeft);
+              const quantity = parseInt(item.quantity || "0") || 0;
 
               return (
-                <Pressable
+                <View
                   key={item.id}
-                  onPress={() => {
-                    // TODO: Navigate to detail screen
-                  }}
-                  style={({ pressed }) => [
-                    {
-                      opacity: pressed ? 0.7 : 1,
-                    },
-                  ]}
+                  className="bg-surface rounded-lg p-4 border border-border"
                 >
-                  <View className="bg-surface rounded-lg p-4 border border-border flex-row items-center justify-between">
+                  {/* Top Row: Product Name and Delete */}
+                  <View className="flex-row items-start justify-between mb-3">
                     <View className="flex-1">
                       <Text className="text-base font-semibold text-foreground">{item.productName}</Text>
                       <View className="flex-row items-center gap-2 mt-2">
@@ -197,18 +210,48 @@ export default function HomeScreen() {
                       <MaterialIcons name="close" size={20} color={colors.muted} />
                     </TouchableOpacity>
                   </View>
-                </Pressable>
+
+                  {/* Bottom Row: Quantity Controls */}
+                  <View className="flex-row items-center justify-between bg-background rounded-lg p-3 border border-border">
+                    <Text className="text-xs text-muted">수량</Text>
+                    
+                    <View className="flex-row items-center gap-3">
+                      {/* Minus Button */}
+                      <TouchableOpacity
+                        onPress={() => handleQuantityChange(item.id, item.quantity || "0", -1)}
+                        className="bg-primary rounded-full p-2"
+                        disabled={updateMutation.isPending}
+                      >
+                        <MaterialIcons name="remove" size={16} color={colors.background} />
+                      </TouchableOpacity>
+
+                      {/* Quantity Display */}
+                      <View className="min-w-12 items-center">
+                        <Text className="text-lg font-bold text-foreground">{quantity}</Text>
+                      </View>
+
+                      {/* Plus Button */}
+                      <TouchableOpacity
+                        onPress={() => handleQuantityChange(item.id, item.quantity || "0", 1)}
+                        className="bg-primary rounded-full p-2"
+                        disabled={updateMutation.isPending}
+                      >
+                        <MaterialIcons name="add" size={16} color={colors.background} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
               );
             })}
           </View>
         )}
       </ScrollView>
 
-      {/* Floating Camera Button */}
+      {/* Floating Camera Button - Hot Pink */}
       <View className="absolute bottom-6 right-6">
         <TouchableOpacity
           onPress={() => router.push("/camera")}
-          className="bg-secondary rounded-full p-5 shadow-lg"
+          className="bg-primary rounded-full p-5 shadow-lg"
           style={{
             shadowColor: "#000",
             shadowOffset: { width: 0, height: 4 },
