@@ -100,9 +100,10 @@ export function useAuth(options?: UseAuthOptions) {
     console.log("[useAuth] useEffect triggered, autoFetch:", autoFetch, "platform:", Platform.OS);
     if (autoFetch) {
       if (Platform.OS === "web") {
-        // Web: fetch user from API directly (user will login manually if needed)
-        console.log("[useAuth] Web: fetching user from API...");
-        fetchUser();
+        // Web: allow anonymous access, no auth required
+        console.log("[useAuth] Web: allowing anonymous access");
+        setUser(null);
+        setLoading(false);
       } else {
         // Native: check for cached user info first for faster initial load
         Auth.getUserInfo().then((cachedUser) => {
@@ -112,8 +113,10 @@ export function useAuth(options?: UseAuthOptions) {
             setUser(cachedUser);
             setLoading(false);
           } else {
-            // No cached user, check session token
-            fetchUser();
+            // No cached user, allow anonymous access
+            console.log("[useAuth] Native: no cached user, allowing anonymous access");
+            setUser(null);
+            setLoading(false);
           }
         });
       }
