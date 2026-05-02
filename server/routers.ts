@@ -20,13 +20,15 @@ export const appRouter = router({
 
   // Food inventory management
   foodItems: router({
-    // Get all food items for the current user
-    list: protectedProcedure.query(({ ctx }) =>
-      db.getUserFoodItems(ctx.user.id)
-    ),
+    // Get all food items for the current user (anonymous users supported)
+    list: publicProcedure.query(({ ctx }) => {
+      // Use anonymous user ID if not authenticated
+      const userId = ctx.user?.id || "anonymous";
+      return db.getUserFoodItems(userId);
+    }),
 
     // Create a new food item
-    create: protectedProcedure
+    create: publicProcedure
       .input(
         z.object({
           productName: z.string().min(1).max(255),
@@ -41,9 +43,10 @@ export const appRouter = router({
         const expirationDate = typeof input.expirationDate === "string"
           ? new Date(input.expirationDate)
           : input.expirationDate;
+        const userId = ctx.user?.id || 0; // Use 0 for anonymous users
 
         return db.createFoodItem({
-          userId: ctx.user.id,
+          userId: userId as number,
           productName: input.productName,
           expirationDate,
           imageUrl: input.imageUrl,
@@ -54,7 +57,7 @@ export const appRouter = router({
       }),
 
     // Update a food item
-    update: protectedProcedure
+    update: publicProcedure
       .input(
         z.object({
           id: z.number(),
@@ -83,12 +86,12 @@ export const appRouter = router({
       }),
 
     // Delete a food item
-    delete: protectedProcedure
+    delete: publicProcedure
       .input(z.object({ id: z.number() }))
       .mutation(({ input }) => db.deleteFoodItem(input.id)),
 
     // Get a single food item
-    get: protectedProcedure
+    get: publicProcedure
       .input(z.object({ id: z.number() }))
       .query(({ input }) => db.getFoodItem(input.id)),
   }),

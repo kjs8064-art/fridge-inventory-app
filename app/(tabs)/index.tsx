@@ -1,7 +1,6 @@
 import { ScrollView, Text, View, TouchableOpacity, FlatList, ActivityIndicator } from "react-native";
 import { ScreenContainer } from "@/components/screen-container";
 import { trpc } from "@/lib/trpc";
-import { useAuth } from "@/hooks/use-auth";
 import { useColors } from "@/hooks/use-colors";
 import { useEffect, useState } from "react";
 import { router } from "expo-router";
@@ -9,22 +8,19 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 export default function HomeScreen() {
   const colors = useColors();
-  const { user, isAuthenticated, loading: authLoading } = useAuth();
   const [selectedFilter, setSelectedFilter] = useState<"all" | "normal" | "warning" | "expired">("all");
 
-  // Fetch food items
+  // Fetch food items - 모든 사용자 접근 가능
   const { data: foodItems = [], isLoading: itemsLoading, refetch } = trpc.foodItems.list.useQuery(
     undefined,
     {
-      enabled: isAuthenticated && !!user,
+      enabled: true, // 항상 활성화
     }
   );
 
   useEffect(() => {
-    if (isAuthenticated && user) {
-      refetch();
-    }
-  }, [isAuthenticated, user]);
+    refetch();
+  }, []);
 
   // Calculate days until expiration
   const getDaysUntilExpiration = (expirationDate: Date | string) => {
@@ -60,32 +56,6 @@ export default function HomeScreen() {
     if (selectedFilter === "expired") return daysLeft < 3;
     return true;
   });
-
-  if (authLoading) {
-    return (
-      <ScreenContainer className="flex items-center justify-center">
-        <ActivityIndicator size="large" color={colors.primary} />
-      </ScreenContainer>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <ScreenContainer className="flex items-center justify-center gap-4 p-6">
-        <MaterialIcons name="lock" size={48} color={colors.primary} />
-        <Text className="text-2xl font-bold text-foreground text-center">로그인이 필요합니다</Text>
-        <Text className="text-base text-muted text-center">
-          FreshTrack를 사용하려면 로그인해주세요.
-        </Text>
-        <TouchableOpacity
-          className="mt-4 bg-primary px-8 py-3 rounded-full"
-          onPress={() => {}}
-        >
-          <Text className="text-background font-semibold text-center">로그인</Text>
-        </TouchableOpacity>
-      </ScreenContainer>
-    );
-  }
 
   return (
     <ScreenContainer className="p-0">

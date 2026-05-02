@@ -91,7 +91,7 @@ export async function getUserByOpenId(openId: string) {
 
 // Food Items queries
 
-export async function getUserFoodItems(userId: number): Promise<FoodItem[]> {
+export async function getUserFoodItems(userId: number | string): Promise<FoodItem[]> {
   const db = await getDb();
   if (!db) {
     console.warn("[Database] Cannot get food items: database not available");
@@ -99,10 +99,11 @@ export async function getUserFoodItems(userId: number): Promise<FoodItem[]> {
   }
 
   try {
+    const numUserId = typeof userId === 'string' ? parseInt(userId) || 0 : userId;
     return await db
       .select()
       .from(foodItems)
-      .where(eq(foodItems.userId, userId))
+      .where(eq(foodItems.userId, numUserId))
       .orderBy(desc(foodItems.addedAt));
   } catch (error) {
     console.error("[Database] Failed to get food items:", error);

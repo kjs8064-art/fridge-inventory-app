@@ -77,3 +77,10 @@
 
 ## 버그 및 개선사항
 - [ ] (추가 예정)
+
+
+## Phase 3-1: 로그인 제거 및 익명 사용자 지원
+- [x] 홈 화면에서 인증 체크 제거
+- [x] 익명 사용자 ID 생성 (userId = 0)
+- [x] protectedProcedure를 publicProcedure로 변경
+- [x] 로그인 UI 제거
