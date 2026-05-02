@@ -5,11 +5,10 @@ import { router, useLocalSearchParams } from "expo-router";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
-import { useAuth } from "@/hooks/use-auth";
+import * as FileSystem from "expo-file-system/legacy";
 
 export default function RecognitionResultScreen() {
   const colors = useColors();
-  const { user } = useAuth();
   const { imageUri } = useLocalSearchParams<{ imageUri: string }>();
   
   const [productName, setProductName] = useState("");
@@ -19,6 +18,7 @@ export default function RecognitionResultScreen() {
   const [notes, setNotes] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isRecognizing, setIsRecognizing] = useState(false);
+  const [uploadedImageUrl, setUploadedImageUrl] = useState("");
 
   const createMutation = trpc.foodItems.create.useMutation({
     onSuccess: () => {
@@ -30,7 +30,22 @@ export default function RecognitionResultScreen() {
     },
   });
 
-  // AI 이미지 인식 (플레이스홀더)
+  const recognizeMutation = trpc.recognition.recognize.useMutation({
+    onSuccess: (data) => {
+      setProductName(data.productName);
+      setExpirationDate(data.expirationDate);
+      setCategory(data.category);
+      setUploadedImageUrl(data.imageUrl);
+      setIsRecognizing(false);
+    },
+    onError: (error) => {
+      console.error("Recognition error:", error);
+      setIsRecognizing(false);
+      alert("이미지 분석에 실패했습니다.");
+    },
+  });
+
+  // AI 이미지 인식
   useEffect(() => {
     if (imageUri) {
       recognizeImage();
@@ -40,18 +55,20 @@ export default function RecognitionResultScreen() {
   const recognizeImage = async () => {
     setIsRecognizing(true);
     try {
-      // TODO: Implement actual AI recognition using LLM
-      // For now, use placeholder values
-      setTimeout(() => {
-        setProductName("우유");
-        setExpirationDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]);
-        setCategory("유제품");
-        setQuantity("1L");
-        setIsRecognizing(false);
-      }, 1500);
+      // 1. Read image file and convert to base64
+      const base64 = await FileSystem.readAsStringAsync(imageUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      // 2. Call recognition API
+      await recognizeMutation.mutateAsync({
+        imageBase64: base64,
+        mimeType: "image/jpeg",
+      });
     } catch (error) {
-      console.error("Recognition error:", error);
+      console.error("Failed to read image:", error);
       setIsRecognizing(false);
+      alert("이미지를 읽을 수 없습니다.");
     }
   };
 
@@ -66,7 +83,7 @@ export default function RecognitionResultScreen() {
       await createMutation.mutateAsync({
         productName: productName.trim(),
         expirationDate,
-        imageUrl: imageUri,
+        imageUrl: uploadedImageUrl || imageUri,
         category: category.trim() || undefined,
         quantity: quantity.trim() || undefined,
         notes: notes.trim() || undefined,

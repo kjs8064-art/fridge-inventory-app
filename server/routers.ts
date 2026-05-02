@@ -3,6 +3,8 @@ import { COOKIE_NAME } from "../shared/const.js";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import { invokeLLM } from "./_core/llm";
+import { storagePut } from "./storage";
 import * as db from "./db";
 
 export const appRouter = router({
@@ -23,7 +25,7 @@ export const appRouter = router({
     // Get all food items for the current user (anonymous users supported)
     list: publicProcedure.query(({ ctx }) => {
       // Use anonymous user ID if not authenticated
-      const userId = ctx.user?.id || "anonymous";
+      const userId = ctx.user?.id || 0;
       return db.getUserFoodItems(userId);
     }),
 
@@ -98,30 +100,74 @@ export const appRouter = router({
 
   // AI image recognition endpoint
   recognition: router({
-    // Recognize food from image URL
+    // Upload image and recognize food from it
     recognize: publicProcedure
       .input(
         z.object({
-          imageUrl: z.string().url(),
+          imageBase64: z.string(), // Base64 encoded image
+          mimeType: z.string().default("image/jpeg"),
         })
       )
       .mutation(async ({ input }) => {
         try {
-          // TODO: Implement actual AI image recognition using invokeLLM
-          // For now, return placeholder values
+          // 1. Upload image to S3
+          const buffer = Buffer.from(input.imageBase64, "base64");
+          const fileName = `food-recognition/${Date.now()}.jpg`;
+          const { url: imageUrl } = await storagePut(fileName, buffer, input.mimeType);
+
+          // 2. Call LLM with the uploaded image URL
+          const response = await invokeLLM({
+            messages: [
+              {
+                role: "system",
+                content: "You are a food recognition expert. Analyze the food image and extract: 1. Product name (제품명) 2. Expiration date (유통기한) in YYYY-MM-DD format. If not visible, estimate based on typical shelf life. 3. Category (분류) - e.g., 채소, 육류, 유제품, 음료, 기타. Respond in JSON format with productName, expirationDate, category, and confidence fields.",
+              },
+              {
+                role: "user",
+                content: [
+                  {
+                    type: "text",
+                    text: "Please analyze this food image and extract the product information.",
+                  },
+                  {
+                    type: "image_url",
+                    image_url: {
+                      url: imageUrl,
+                      detail: "auto",
+                    },
+                  },
+                ] as any,
+              } as any,
+            ] as any,
+            response_format: {
+              type: "json_object",
+            },
+          } as any);
+
+          // 3. Parse the response
+          const content = response.choices[0]?.message?.content;
+          if (!content) {
+            throw new Error("No response from LLM");
+          }
+
+          const jsonContent = typeof content === 'string' ? content : JSON.stringify(content);
+          const result = JSON.parse(jsonContent);
           return {
-            productName: "Recognized Product",
-            expirationDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-            category: "기타",
-            confidence: 0.7,
+            productName: result.productName || "Unknown",
+            expirationDate: result.expirationDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+            category: result.category || "기타",
+            confidence: result.confidence || 0.7,
+            imageUrl, // Return the uploaded image URL
           };
         } catch (error) {
           console.error("AI recognition error:", error);
+          // Return default values on error
           return {
             productName: "Unknown Product",
             expirationDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
             category: "기타",
             confidence: 0.3,
+            imageUrl: "",
           };
         }
       }),

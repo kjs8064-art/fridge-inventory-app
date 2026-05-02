@@ -84,3 +84,11 @@
 - [x] 익명 사용자 ID 생성 (userId = 0)
 - [x] protectedProcedure를 publicProcedure로 변경
 - [x] 로그인 UI 제거
+
+
+## Phase 4: AI 이미지 인식 기능 구현
+- [x] 이미지를 S3에 업로드
+- [x] 서버의 invokeLLM으로 이미지 분석
+- [x] AI 인식 결과를 클라이언트로 반환
+- [x] 인식 결과를 입력 폼에 자동 채우기
+- [x] 로딩 상태 UI 개선
