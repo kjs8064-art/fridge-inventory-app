@@ -1,22 +1,22 @@
 /** @type {const} */
 const themeColors = {
-  // Primary: Fresh Green (정상 상태, 주요 버튼)
-  primary: { light: '#2ECC71', dark: '#27AE60' },
-  // Secondary: Fresh Blue (보조 요소)
-  secondary: { light: '#3498DB', dark: '#2980B9' },
+  // Primary: Premium Blue (SnapStock 메인 색상)
+  primary: { light: '#0066CC', dark: '#0066CC' },
+  // Secondary: Bright Accent (액션 버튼)
+  secondary: { light: '#FF6B6B', dark: '#FF8787' },
   // Background
-  background: { light: '#FFFFFF', dark: '#1A1A1A' },
+  background: { light: '#FFFFFF', dark: '#0F1419' },
   // Surface (카드, 엘리먼트)
-  surface: { light: '#F8F9FA', dark: '#2D2D2D' },
+  surface: { light: '#F8FAFB', dark: '#1A1F2E' },
   // Text
-  foreground: { light: '#1A1A1A', dark: '#FFFFFF' },
-  muted: { light: '#666666', dark: '#AAAAAA' },
+  foreground: { light: '#0A0E27', dark: '#F5F7FA' },
+  muted: { light: '#6B7280', dark: '#9CA3AF' },
   // Border
-  border: { light: '#E0E0E0', dark: '#404040' },
+  border: { light: '#E5E7EB', dark: '#374151' },
   // Status Colors
-  success: { light: '#27AE60', dark: '#2ECC71' },     // 정상 (7일 이상)
-  warning: { light: '#F39C12', dark: '#E67E22' },     // 임박 (3-6일)
-  error: { light: '#E74C3C', dark: '#C0392B' },       // 만료 (0일 이하)
+  success: { light: '#10B981', dark: '#34D399' },     // 정상 (7일 이상)
+  warning: { light: '#F59E0B', dark: '#FBBF24' },     // 임박 (3-6일)
+  error: { light: '#EF4444', dark: '#F87171' },       // 만료 (0일 이하)
 };
 
 module.exports = { themeColors };

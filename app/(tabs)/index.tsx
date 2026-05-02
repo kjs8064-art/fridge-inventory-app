@@ -1,4 +1,4 @@
-import { ScrollView, Text, View, TouchableOpacity, FlatList, ActivityIndicator } from "react-native";
+import { ScrollView, Text, View, TouchableOpacity, Pressable, Alert } from "react-native";
 import { ScreenContainer } from "@/components/screen-container";
 import { trpc } from "@/lib/trpc";
 import { useColors } from "@/hooks/use-colors";
@@ -10,11 +10,11 @@ export default function HomeScreen() {
   const colors = useColors();
   const [selectedFilter, setSelectedFilter] = useState<"all" | "normal" | "warning" | "expired">("all");
 
-  // Fetch food items - 모든 사용자 접근 가능
+  // Fetch food items
   const { data: foodItems = [], isLoading: itemsLoading, refetch } = trpc.foodItems.list.useQuery(
     undefined,
     {
-      enabled: true, // 항상 활성화
+      enabled: true,
     }
   );
 
@@ -44,7 +44,7 @@ export default function HomeScreen() {
     if (daysLeft < 0) return "만료됨";
     if (daysLeft === 0) return "오늘";
     if (daysLeft === 1) return "내일";
-    return `${daysLeft}일 남음`;
+    return `${daysLeft}일`;
   };
 
   // Filter items
@@ -57,123 +57,169 @@ export default function HomeScreen() {
     return true;
   });
 
+  // Get stats
+  const stats = {
+    total: foodItems.length,
+    normal: foodItems.filter((item) => getDaysUntilExpiration(item.expirationDate) >= 7).length,
+    warning: foodItems.filter((item) => {
+      const days = getDaysUntilExpiration(item.expirationDate);
+      return days >= 3 && days < 7;
+    }).length,
+    expired: foodItems.filter((item) => getDaysUntilExpiration(item.expirationDate) < 3).length,
+  };
+
+  const handleDeleteItem = (id: number) => {
+    Alert.alert("삭제 확인", "이 식품을 삭제하시겠습니까?", [
+      { text: "취소", onPress: () => {}, style: "cancel" },
+      {
+        text: "삭제",
+        onPress: () => {
+          // TODO: Implement delete mutation
+          refetch();
+        },
+        style: "destructive",
+      },
+    ]);
+  };
+
   return (
     <ScreenContainer className="p-0">
-      {/* Header */}
-      <View className="bg-primary px-6 py-4">
-        <Text className="text-2xl font-bold text-background">FreshTrack</Text>
-        <Text className="text-sm text-background opacity-80">냉장고 관리를 쉽게</Text>
+      {/* Premium Header */}
+      <View className="bg-primary px-6 py-6">
+        <View className="flex-row items-center justify-between mb-4">
+          <View>
+            <Text className="text-3xl font-bold text-background">SnapStock</Text>
+            <Text className="text-sm text-background opacity-80 mt-1">사진 한 장, 재고 완성</Text>
+          </View>
+          <View className="bg-background opacity-20 rounded-full p-3">
+            <MaterialIcons name="camera-alt" size={24} color={colors.background} />
+          </View>
+        </View>
+
+        {/* Quick Stats */}
+        <View className="flex-row gap-2">
+          <View className="flex-1 bg-background opacity-15 rounded-lg p-3">
+            <Text className="text-xs text-background opacity-70">전체</Text>
+            <Text className="text-xl font-bold text-background mt-1">{stats.total}</Text>
+          </View>
+          <View className="flex-1 bg-background opacity-15 rounded-lg p-3">
+            <Text className="text-xs text-background opacity-70">임박</Text>
+            <Text className="text-xl font-bold text-background mt-1">{stats.warning}</Text>
+          </View>
+          <View className="flex-1 bg-background opacity-15 rounded-lg p-3">
+            <Text className="text-xs text-background opacity-70">만료</Text>
+            <Text className="text-xl font-bold text-background mt-1">{stats.expired}</Text>
+          </View>
+        </View>
       </View>
 
       {/* Filter Tabs */}
-      <View className="flex-row px-6 py-4 gap-2 border-b border-border">
-        <TouchableOpacity
-          onPress={() => setSelectedFilter("all")}
-          className={`px-4 py-2 rounded-full ${selectedFilter === "all" ? "bg-primary" : "bg-surface"}`}
-        >
-          <Text className={`text-sm font-semibold ${selectedFilter === "all" ? "text-background" : "text-foreground"}`}>
-            전체
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => setSelectedFilter("normal")}
-          className={`px-4 py-2 rounded-full ${selectedFilter === "normal" ? "bg-success" : "bg-surface"}`}
-        >
-          <Text className={`text-sm font-semibold ${selectedFilter === "normal" ? "text-background" : "text-foreground"}`}>
-            정상
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => setSelectedFilter("warning")}
-          className={`px-4 py-2 rounded-full ${selectedFilter === "warning" ? "bg-warning" : "bg-surface"}`}
-        >
-          <Text className={`text-sm font-semibold ${selectedFilter === "warning" ? "text-background" : "text-foreground"}`}>
-            임박
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => setSelectedFilter("expired")}
-          className={`px-4 py-2 rounded-full ${selectedFilter === "expired" ? "bg-error" : "bg-surface"}`}
-        >
-          <Text className={`text-sm font-semibold ${selectedFilter === "expired" ? "text-background" : "text-foreground"}`}>
-            만료
-          </Text>
-        </TouchableOpacity>
+      <View className="flex-row px-4 py-4 gap-2 border-b border-border">
+        {[
+          { key: "all", label: "전체" },
+          { key: "normal", label: "정상" },
+          { key: "warning", label: "임박" },
+          { key: "expired", label: "만료" },
+        ].map((filter) => (
+          <TouchableOpacity
+            key={filter.key}
+            onPress={() => setSelectedFilter(filter.key as any)}
+            className={`px-4 py-2 rounded-full ${
+              selectedFilter === filter.key
+                ? "bg-primary"
+                : "bg-surface border border-border"
+            }`}
+          >
+            <Text
+              className={`text-sm font-semibold ${
+                selectedFilter === filter.key ? "text-background" : "text-foreground"
+              }`}
+            >
+              {filter.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
       {/* Food Items List */}
-      {itemsLoading ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      ) : filteredItems.length === 0 ? (
-        <View className="flex-1 items-center justify-center px-6">
-          <MaterialIcons name="inbox" size={48} color={colors.muted} />
-          <Text className="text-lg font-semibold text-foreground mt-4">식품이 없습니다</Text>
-          <Text className="text-sm text-muted text-center mt-2">
-            아래의 카메라 버튼을 눌러 새로운 식품을 추가해보세요.
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={filteredItems}
-          keyExtractor={(item) => item.id.toString()}
-          contentContainerStyle={{ padding: 16, gap: 12 }}
-          renderItem={({ item }) => {
-            const daysLeft = getDaysUntilExpiration(item.expirationDate);
-            const statusColor = getStatusColor(daysLeft);
-            const statusLabel = getStatusLabel(daysLeft);
+      <ScrollView className="flex-1 px-4 py-4">
+        {itemsLoading ? (
+          <View className="items-center justify-center py-12">
+            <MaterialIcons name="hourglass-empty" size={40} color={colors.muted} />
+            <Text className="text-muted mt-2">로딩 중...</Text>
+          </View>
+        ) : filteredItems.length === 0 ? (
+          <View className="items-center justify-center py-12">
+            <MaterialIcons name="inbox" size={48} color={colors.muted} />
+            <Text className="text-lg font-semibold text-foreground mt-4">식품이 없습니다</Text>
+            <Text className="text-muted text-center mt-2">
+              카메라 버튼을 눌러 사진을 찍으면{"\n"}자동으로 식품이 등록됩니다
+            </Text>
+          </View>
+        ) : (
+          <View className="gap-3 pb-6">
+            {filteredItems.map((item) => {
+              const daysLeft = getDaysUntilExpiration(item.expirationDate);
+              const statusColor = getStatusColor(daysLeft);
+              const statusLabel = getStatusLabel(daysLeft);
 
-            return (
-              <TouchableOpacity
-                onPress={() => {}}
-                className="flex-row bg-surface rounded-lg p-4 border border-border"
-              >
-                {/* Image Placeholder */}
-                <View className="w-20 h-20 bg-muted rounded-lg mr-4 items-center justify-center">
-                  {item.imageUrl ? (
-                    <Text className="text-xs text-background">이미지</Text>
-                  ) : (
-                    <MaterialIcons name="image" size={32} color={colors.foreground} />
-                  )}
-                </View>
-
-                {/* Content */}
-                <View className="flex-1 justify-center">
-                  <Text className="text-base font-semibold text-foreground" numberOfLines={1}>
-                    {item.productName}
-                  </Text>
-                  <Text className="text-xs text-muted mt-1">
-                    {item.category || "분류 없음"}
-                  </Text>
-                  <View className="flex-row items-center mt-2">
-                    <View
-                      className="w-2 h-2 rounded-full mr-2"
-                      style={{ backgroundColor: statusColor }}
-                    />
-                    <Text className="text-sm font-semibold" style={{ color: statusColor }}>
-                      {statusLabel}
-                    </Text>
+              return (
+                <Pressable
+                  key={item.id}
+                  onPress={() => {
+                    // TODO: Navigate to detail screen
+                  }}
+                  style={({ pressed }) => [
+                    {
+                      opacity: pressed ? 0.7 : 1,
+                    },
+                  ]}
+                >
+                  <View className="bg-surface rounded-lg p-4 border border-border flex-row items-center justify-between">
+                    <View className="flex-1">
+                      <Text className="text-base font-semibold text-foreground">{item.productName}</Text>
+                      <View className="flex-row items-center gap-2 mt-2">
+                        <View
+                          className="rounded-full px-3 py-1"
+                          style={{ backgroundColor: statusColor + "20" }}
+                        >
+                          <Text className="text-xs font-semibold" style={{ color: statusColor }}>
+                            {statusLabel}
+                          </Text>
+                        </View>
+                        <Text className="text-xs text-muted">{item.category}</Text>
+                      </View>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => handleDeleteItem(item.id)}
+                      className="p-2"
+                    >
+                      <MaterialIcons name="close" size={20} color={colors.muted} />
+                    </TouchableOpacity>
                   </View>
-                </View>
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
+      </ScrollView>
 
-                {/* Right Arrow */}
-                <View className="justify-center">
-                  <MaterialIcons name="chevron-right" size={24} color={colors.muted} />
-                </View>
-              </TouchableOpacity>
-            );
+      {/* Floating Camera Button */}
+      <View className="absolute bottom-6 right-6">
+        <TouchableOpacity
+          onPress={() => router.push("/camera")}
+          className="bg-secondary rounded-full p-5 shadow-lg"
+          style={{
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 8,
+            elevation: 8,
           }}
-        />
-      )}
-
-      {/* Floating Action Button */}
-      <TouchableOpacity
-        className="absolute bottom-6 right-6 w-16 h-16 bg-primary rounded-full items-center justify-center shadow-lg"
-        onPress={() => router.push("/camera")}
-      >
-        <MaterialIcons name="add-a-photo" size={28} color={colors.background} />
-      </TouchableOpacity>
+        >
+          <MaterialIcons name="camera-alt" size={28} color={colors.background} />
+        </TouchableOpacity>
+      </View>
     </ScreenContainer>
   );
 }
