@@ -89,16 +89,23 @@ export default function HomeScreen() {
   // Delete mutation
   const deleteMutation = trpc.foodItems.delete.useMutation({
     onSuccess: () => {
+      console.log("[Delete] Mutation success, refetching...");
       refetch();
+    },
+    onError: (error) => {
+      console.error("[Delete] Mutation error:", error);
+      Alert.alert("삭제 실패", "식품 삭제에 실패했습니다. 다시 시도해주세요.");
     },
   });
 
   const handleDeleteItem = (id: number) => {
+    console.log("[Delete] Delete button clicked for item:", id);
     Alert.alert("삭제 확인", "이 식품을 삭제하시겠습니까?", [
-      { text: "취소", onPress: () => {}, style: "cancel" },
+      { text: "취소", onPress: () => console.log("[Delete] Cancelled"), style: "cancel" },
       {
         text: "삭제",
         onPress: () => {
+          console.log("[Delete] Confirmed, calling mutate with id:", id);
           deleteMutation.mutate({ id });
         },
         style: "destructive",
@@ -194,31 +201,34 @@ export default function HomeScreen() {
                   className="bg-surface rounded-lg p-4 border border-border"
                 >
                   {/* Top Row: Product Name and Delete */}
-                  <Pressable
-                    onPress={() => router.push({ pathname: "/food-detail/[id]", params: { id: item.id.toString() } })}
-                    className="flex-row items-start justify-between mb-3"
-                  >
-                    <View className="flex-1">
-                      <Text className="text-base font-semibold text-foreground">{item.productName}</Text>
-                      <View className="flex-row items-center gap-2 mt-2">
-                        <View
-                          className="rounded-full px-3 py-1"
-                          style={{ backgroundColor: statusColor + "20" }}
-                        >
-                          <Text className="text-xs font-semibold" style={{ color: statusColor }}>
-                            {statusLabel}
-                          </Text>
+                  <View className="flex-row items-start justify-between mb-3">
+                    <Pressable
+                      onPress={() => router.push({ pathname: "/food-detail/[id]", params: { id: item.id.toString() } })}
+                      className="flex-1"
+                    >
+                      <View className="flex-1">
+                        <Text className="text-base font-semibold text-foreground">{item.productName}</Text>
+                        <View className="flex-row items-center gap-2 mt-2">
+                          <View
+                            className="rounded-full px-3 py-1"
+                            style={{ backgroundColor: statusColor + "20" }}
+                          >
+                            <Text className="text-xs font-semibold" style={{ color: statusColor }}>
+                              {statusLabel}
+                            </Text>
+                          </View>
+                          <Text className="text-xs text-muted">{item.category}</Text>
                         </View>
-                        <Text className="text-xs text-muted">{item.category}</Text>
                       </View>
-                    </View>
+                    </Pressable>
                     <TouchableOpacity
                       onPress={() => handleDeleteItem(item.id)}
-                      className="p-2"
+                      className="p-2 ml-2"
+                      activeOpacity={0.6}
                     >
-                      <MaterialIcons name="close" size={20} color={colors.muted} />
+                      <MaterialIcons name="close" size={20} color={colors.error} />
                     </TouchableOpacity>
-                  </Pressable>
+                  </View>
 
                   {/* Bottom Row: Quantity Controls */}
                   <View className="flex-row items-center justify-between bg-background rounded-lg p-2 border border-border">
