@@ -134,3 +134,21 @@
 - [x] 공휴일 및 주말 표시 기능
 - [x] 선택된 날짜 정보 표시 (공휴일/주말 여부)
 - [x] 범례 업데이트 (공휴일/주말 표시 추가)
+
+
+## Phase 19: AdMob 빌드 오류 해결
+- [ ] expo-ads-admob 패키지 제거
+- [ ] react-native-google-mobile-ads 패키지 설치
+- [ ] Google Mobile Ads 초기화 및 설정
+- [ ] 배너 광고 구현 (react-native-google-mobile-ads)
+- [ ] 전면 광고 구현 (react-native-google-mobile-ads)
+- [ ] 빌드 테스트
+
+
+## Phase 19: AdMob 빌드 오류 해결
+- [x] expo-ads-admob 패키지 제거
+- [x] react-native-google-mobile-ads 패키지 설치
+- [x] Google Mobile Ads 초기화 및 설정 (google-mobile-ads-config.ts)
+- [x] 배너 광고 컴포넌트 구현 (google-banner-ad.tsx)
+- [x] 전면 광고 관리 유틸리티 구현 (google-interstitial-ad.ts)
+- [x] 테스트 작성 및 통과 (8/8 테스트 통과)
