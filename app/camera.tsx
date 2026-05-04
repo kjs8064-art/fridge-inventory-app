@@ -198,7 +198,8 @@ export default function CameraScreen() {
         )}
       </TouchableOpacity>
 
-      {/* Receipt Button */}
+      {/* Receipt Button - TODO: 영수증 인식 기능 완성 후 활성화 */}
+      {/*
       <TouchableOpacity
         onPress={() => {
           setIsLoading(true);
@@ -233,6 +234,7 @@ export default function CameraScreen() {
           </>
         )}
       </TouchableOpacity>
+      */}
 
       {/* Cancel Button */}
       <TouchableOpacity
