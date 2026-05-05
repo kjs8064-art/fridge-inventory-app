@@ -21,5 +21,13 @@
         "releaseChannel": "production"
       }
     }
+  },
+  "submit": {
+    "production": {
+      "android": {
+        "serviceAccountKeyPath": "./google-service-account-key.json",
+        "track": "internal"
+      }
+    }
   }
 }
