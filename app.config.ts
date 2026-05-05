@@ -34,8 +34,8 @@ const env = {
   // Leave empty to use the default icon from assets/images/icon.png
   logoUrl: "",
   scheme: schemeFromBundleId,
-  iosBundleId: bundleId,
-  androidPackage: bundleId,
+  iosBundleId: "com.newset.snapstock",
+  androidPackage: "com.newset.snapstock",
 };
 
 const config: ExpoConfig = {
